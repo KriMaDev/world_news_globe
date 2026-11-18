@@ -4,6 +4,11 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
+## 1.11.0 · 2026-11-18
+
+- New category, Cyber & outages: hacks, ransomware, data breaches, internet shutdowns, power cuts and big service outages. It takes the cyber and outage words from Technology advancements.
+- Internet outages from Cloudflare Radar's Outage Center, as a data feed: one event per country, while the outage lasts. A government-ordered nationwide shutdown is critical, other nationwide outages high, regional ones moderate, single networks low.
+
 ## 1.10.0 · 2026-11-18
 
 - WHO outbreak reports: the World Health Organization's Disease Outbreak News, in Health & outbreaks, shown in every country a report names for 14 days after publication. The most dangerous diseases are critical; other reports are high with 10 or more deaths, otherwise moderate (rule on the About page).
