@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from globe_pipeline.severity import SEVERITY_COLORS, Severity
+from globe_pipeline.severity import SEVERITY_COLORS, Severity, who_severity
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -45,3 +45,23 @@ def test_colors_match_docs_and_frontend() -> None:
         )
         assert match, f"{level.label} missing from severity.ts"
         assert match.group(1).lower() == color.lower()
+
+
+@pytest.mark.parametrize(
+    ("title", "level"),
+    [
+        ("Ebola disease caused by a test virus - Testland", "critical"),
+        ("Marburg virus disease- Testland", "critical"),
+        ("Middle East respiratory syndrome coronavirus - Testland", "high"),
+        ("Avian Influenza A(H9N2) - Testland", "high"),
+        ("Pneumonia of undetermined etiology - Testland", "high"),
+        ("Chikungunya virus disease - Testland", "moderate"),
+        ("Measles - Testland", "moderate"),
+        # "mers" only as a word start: not inside "Summers".
+        ("Summers test fever - Testland", "moderate"),
+    ],
+)
+def test_who_severity(title: str, level: str) -> None:
+    rated, reason = who_severity(title)
+    assert rated.label == level
+    assert "WHO" in reason

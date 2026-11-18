@@ -194,3 +194,43 @@ def news_severity(headline: str) -> Rated:
         if term in lowered:
             return Severity.MODERATE, f'Headline mentions "{term.rstrip()}"'
     return Severity.LOW, "No deaths or listed hazard terms in the headline"
+
+
+# ---------- WHO Disease Outbreak News ----------
+
+#: Diseases by level, matched as words in WHO's own report title. WHO only publishes notable
+#: outbreaks, so a report is never "low": anything not listed is moderate.
+WHO_LEVELS: tuple[tuple[Severity, tuple[str, ...]], ...] = (
+    (Severity.CRITICAL, ("ebola", "marburg", "smallpox", "plague")),
+    (
+        Severity.HIGH,
+        (
+            "nipah",
+            "middle east respiratory syndrome",
+            "mers",
+            "avian influenza",
+            "novel influenza",
+            "influenza a(h",
+            "cholera",
+            "yellow fever",
+            "mpox",
+            "poliomyelitis",
+            "polio",
+            "diphtheria",
+            "lassa",
+            "crimean-congo",
+            "undetermined",
+        ),
+    ),
+)
+
+
+def who_severity(title: str) -> Rated:
+    """A WHO outbreak report: Ebola, Marburg, smallpox or plague critical; the diseases in
+    WHO_LEVELS high; every other report moderate."""
+    lowered = title.lower()
+    for level, diseases in WHO_LEVELS:
+        for disease in diseases:
+            if re.search(r"(?<![a-z])" + re.escape(disease), lowered):
+                return level, f'WHO outbreak report on "{disease}" ({level.label} by our list)'
+    return Severity.MODERATE, "WHO outbreak report (every report is at least moderate)"

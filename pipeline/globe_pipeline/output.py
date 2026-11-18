@@ -1,11 +1,12 @@
 """Reading the previous run's data and writing the published files.
 
 Published (docs/architecture.md):
-- events.json: the last 72 hours (the page's first load stays small);
-- days/YYYY-MM-DD.json: every event of one UTC day, for the 7-day timeline;
+- events.json: the last 72 hours (the page's first load stays small), plus reports still
+  current then (an event's `until`);
+- days/YYYY-MM-DD.json: every event of one UTC day, for the 14-day timeline;
 - days/index.json: the days available, with counts;
 - feeds.json: each source's health, and GDELT's cursor;
-- outlets.json: every allowlisted outlet (country, region, ownership, events in the 7 days)
+- outlets.json: every allowlisted outlet (country, region, ownership, events in the 14 days)
   and the data-feed providers with their credit lines, for the source lines on cards.
 """
 
@@ -23,7 +24,7 @@ from .outlets import outlets_document
 from .severity import Severity
 
 #: How long events are kept (the timeline's reach).
-WINDOW = timedelta(days=7)
+WINDOW = timedelta(days=14)
 #: What events.json holds: the default view's time window.
 RECENT = timedelta(hours=72)
 
@@ -107,8 +108,9 @@ def load_previous(location: str | None) -> Previous:
 
 
 def within_window(events: list[Event], now: datetime, window: timedelta = WINDOW) -> list[Event]:
-    """Events published within `window` before `now` (7 days by default)."""
-    return [event for event in events if now - event.published <= window]
+    """Events current within `window` before `now` (14 days by default): published in it, or
+    still current in it (`until`)."""
+    return [event for event in events if now - event.active_until <= window]
 
 
 def order(events: list[Event]) -> list[Event]:

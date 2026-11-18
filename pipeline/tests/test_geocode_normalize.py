@@ -31,9 +31,7 @@ def _border_gazetteer(gazetteer: Gazetteer) -> Gazetteer:
         City("Al Bireh", 31.9097, 35.2186, "PS", "WE", 45_975),
         City("Nablus", 32.2211, 35.2544, "PS", "WE", 130_326),
     ]
-    return Gazetteer(
-        gazetteer.cities + extra, gazetteer.countries, gazetteer.admin1, gazetteer.m49
-    )
+    return Gazetteer(gazetteer.cities + extra, gazetteer.countries, gazetteer.admin1, gazetteer.m49)
 
 
 def test_reverse_never_crosses_a_border_to_a_bigger_city(gazetteer) -> None:

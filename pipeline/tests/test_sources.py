@@ -10,7 +10,7 @@ import pytest
 from globe_pipeline import http as pipeline_http
 from globe_pipeline.http import FetchError
 from globe_pipeline.outlets import OUTLETS, clean_headline, is_sport_page, outlet_for_url
-from globe_pipeline.sources import gdacs, gdelt, usgs
+from globe_pipeline.sources import gdacs, gdelt, usgs, who
 
 
 def usgs_feature(fid: str, mag: float, lat: float, lng: float, minutes_ago: int, now, alert=None):
@@ -344,3 +344,60 @@ def test_a_download_cut_off_half_way_is_a_failed_fetch(monkeypatch) -> None:
 def test_only_web_addresses_count_as_an_outlets_article() -> None:
     domain = OUTLETS[0].domains[0]
     assert outlet_for_url(f"javascript://{domain}/%0aalert(1)") is None
+
+
+# ---------- WHO Disease Outbreak News (made-up reports) ----------
+
+WHO_POINTS = {"BG": (42.7, 25.5), "JP": (36.0, 138.0), "YE": (15.6, 47.6), "RU": (61.0, 96.0)}
+
+
+def who_report(title: str, slug: str, now, days_ago: float) -> dict:
+    published = (now - timedelta(days=days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"Title": title, "PublicationDate": published, "UrlName": slug}
+
+
+def test_who_titles_name_their_countries(gazetteer) -> None:
+    named = who.countries_named
+    assert named("Test fever - Bulgaria", gazetteer) == ["BG"]
+    assert named("Test fever- the Russian Federation", gazetteer) == ["RU"]
+    assert named("Test virus disease, Japan, Yemen and Bulgaria", gazetteer) == ["JP", "YE", "BG"]
+    assert named("Test fever - WHO African Region", gazetteer) == []
+    assert named("Test cluster linked to travel, Multi-country", gazetteer) == []
+    # The disease part is never read for places.
+    assert named("Japan test encephalitis - Yemen", gazetteer) == ["YE"]
+
+
+def test_who_parse_places_rates_and_keeps_reports_14_days(gazetteer, now) -> None:
+    reports = [
+        who_report("Ebola test disease, Japan and Yemen", "2026-DON1", now, 2),
+        who_report("Measles test - Bulgaria", "2026-DON2", now, 10),
+        who_report("Measles test - Bulgaria", "2026-DON0", now, 12),  # older, same title
+        who_report("Old test report - Bulgaria", "2026-DON3", now, 15),  # past 14 days
+        who_report("Test cluster - Global situation", "2026-DON4", now, 1),
+    ]
+    events, stats = who.parse(reports, gazetteer, now, WHO_POINTS)
+    assert sorted(e.id for e in events) == [
+        "who:2026-DON1:JP",
+        "who:2026-DON1:YE",
+        "who:2026-DON2:BG",
+    ]
+    assert stats == {"reports": 5, "current": 3, "not_placed": 1}
+    ebola = next(e for e in events if e.id.endswith(":JP"))
+    assert (ebola.severity.label, ebola.kind, ebola.categories) == (
+        "critical",
+        "data-feed",
+        ["health"],
+    )
+    assert (ebola.lat, ebola.lng, ebola.geo.precision) == (36.0, 138.0, "country")
+    assert ebola.sources[0].url.endswith("/disease-outbreak-news/item/2026-DON1")
+    assert ebola.until == ebola.published + timedelta(days=14)
+    assert ebola.to_json()["until"]
+    measles = next(e for e in events if e.id.endswith(":BG"))
+    assert measles.severity.label == "moderate"
+
+
+def test_who_label_points_cover_the_countries() -> None:
+    points = who.label_points()
+    assert len(points) > 200
+    lat, lng = points["CD"]
+    assert -14 < lat < 6 and 12 < lng < 32

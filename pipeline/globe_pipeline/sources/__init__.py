@@ -1,4 +1,5 @@
-"""Event sources: USGS earthquakes, GDACS disaster alerts and GDELT news (allowlisted outlets)."""
+"""Event sources: USGS earthquakes, GDACS disaster alerts, WHO outbreak reports and GDELT news
+(allowlisted outlets)."""
 
 from __future__ import annotations
 

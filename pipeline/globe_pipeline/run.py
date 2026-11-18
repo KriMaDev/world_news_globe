@@ -27,7 +27,7 @@ from .models import Event, iso
 from .outlets import MAX_EVENTS_PER_OUTLET, MAX_SPORT_EVENTS_PER_OUTLET
 from .output import FeedStatus, Previous, day_of, load_previous, within_window, write
 from .pages import write_pages
-from .sources import gdacs, gdelt, usgs
+from .sources import gdacs, gdelt, usgs, who
 
 LOG = logging.getLogger("globe_pipeline")
 DEFAULT_PREVIOUS = "https://globe.krimadev.com/data"
@@ -133,7 +133,15 @@ def run(
     alerts = _run_feed(
         gdacs_status, lambda: gdacs.fetch(gazetteer, now), by_feed.get("gdacs", []), now
     )
-    statuses += [usgs_status, gdacs_status]
+    who_status = _status(who, "data-feed", previous, now)
+
+    def fetch_reports() -> list[Event]:
+        found, stats = who.fetch(gazetteer, now)
+        who_status.stats = stats
+        return found
+
+    reports = _run_feed(who_status, fetch_reports, by_feed.get("who", []), now)
+    statuses += [usgs_status, gdacs_status, who_status]
 
     # News accumulates: last run's news plus the articles published since.
     news_status = _status(gdelt, "news", previous, now)
@@ -152,10 +160,12 @@ def run(
     _mark_partial(news_status, last_news_success)
     statuses.append(news_status)
 
-    events = balance_outlets(cluster(web_links_only(within_window(quakes + alerts + news, now))))
+    events = balance_outlets(
+        cluster(web_links_only(within_window(quakes + alerts + reports + news, now)))
+    )
     news_status.count = sum(1 for e in events if e.kind == "news")
     providers = [
-        {"name": m.SOURCE, "credit": m.CREDIT, "homepage": m.HOMEPAGE} for m in (usgs, gdacs)
+        {"name": m.SOURCE, "credit": m.CREDIT, "homepage": m.HOMEPAGE} for m in (usgs, gdacs, who)
     ]
     write(out, events, statuses, now, cursor, providers)
     if site is not None:

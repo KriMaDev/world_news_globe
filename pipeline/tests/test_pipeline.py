@@ -88,11 +88,19 @@ def test_merge_keeps_highest_severity(now) -> None:
     assert cluster([a, b])[0].severity == Severity.HIGH
 
 
-def test_window_keeps_seven_days(now) -> None:
+def test_window_keeps_fourteen_days(now) -> None:
     fresh = news("f", "Fresh story here today", "dw", now, 60)
-    last_week = news("w", "Story from six days ago", "dw", now, 6 * 24 * 60)
-    old = news("o", "Story from eight days ago", "dw", now, 8 * 24 * 60)
+    last_week = news("w", "Story from thirteen days ago", "dw", now, 13 * 24 * 60)
+    old = news("o", "Story from fifteen days ago", "dw", now, 15 * 24 * 60)
     assert [e.id for e in within_window([fresh, last_week, old], now)] == ["f", "w"]
+
+
+def test_window_counts_a_report_while_it_is_current(now) -> None:
+    """A report published before the window still counts while its `until` is inside it."""
+    report = news("r", "Report from five days ago", "dw", now, 5 * 24 * 60)
+    current = replace(report, until=now + timedelta(days=9))
+    assert within_window([report], now, timedelta(hours=72)) == []
+    assert [e.id for e in within_window([current], now, timedelta(hours=72))] == ["r"]
 
 
 def test_outlet_balance_keeps_most_severe(now) -> None:
@@ -190,6 +198,7 @@ def test_failing_source_keeps_its_last_events(tmp_path, monkeypatch, gazetteer, 
 
     monkeypatch.setattr(run_module.Gazetteer, "load", classmethod(lambda cls, path=None: gazetteer))
     monkeypatch.setattr(run_module.usgs, "fetch", lambda g, n: [])
+    monkeypatch.setattr(run_module.who, "fetch", lambda g, n: ([], {}))
     monkeypatch.setattr(run_module.gdacs, "fetch", broken)
     monkeypatch.setattr(run_module.gdelt, "fetch", broken)
 
@@ -226,6 +235,7 @@ def _run_with_news(tmp_path, monkeypatch, gazetteer, now, found, stats):
     )
     monkeypatch.setattr(run_module.Gazetteer, "load", classmethod(lambda cls, path=None: gazetteer))
     monkeypatch.setattr(run_module.usgs, "fetch", lambda g, n: [])
+    monkeypatch.setattr(run_module.who, "fetch", lambda g, n: ([], {}))
     monkeypatch.setattr(run_module.gdacs, "fetch", lambda g, n: [])
     cursor = now - timedelta(minutes=30)
     monkeypatch.setattr(run_module.gdelt, "fetch", lambda g, n, c: (found(kept), cursor, stats))
