@@ -4,6 +4,15 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
+## 1.10.0 · 2026-11-18
+
+- WHO outbreak reports: the World Health Organization's Disease Outbreak News, in Health & outbreaks, shown in every country a report names for 14 days after publication. Severity follows the disease (rule on the About page).
+- The timeline reaches back 14 days, with a 14 days choice. Earthquakes and disaster alerts are kept for the 14 days too.
+- Places near a border stay in their own country: news from the West Bank no longer lands in Israel. Cards say a place found by software can land across a border, and About says borders and names take no side.
+- Categories reviewed for 2026: new words for air attacks, elections and local politics, labour strikes, outages and cyber attacks, this year's outbreaks, and climate.
+- Licence: the code is under the PolyForm Noncommercial License 1.0.0 from this version (free for any non-commercial use). Earlier versions stay under MIT.
+- The update tries the deploy again when Cloudflare is briefly unable to find the new version.
+
 ## 1.9.0 · 2026-11-14
 
 - The footer shows a version number and the build date, and links to this changelog, instead of the commit.
