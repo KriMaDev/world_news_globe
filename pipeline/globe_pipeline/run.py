@@ -3,6 +3,7 @@
 Usage:
     python -m globe_pipeline.run --out ../frontend/public/data
     python -m globe_pipeline.run --out OUT --previous https://globe.krimadev.com/data
+    python -m globe_pipeline.run --out OUT --radar path/to/outages.json
 
 A failing source never stops the run: its last good events are kept and feeds.json marks it
 with status "error" and the time of its last success. A source read only in part (some GDELT
@@ -27,7 +28,7 @@ from .models import Event, iso
 from .outlets import MAX_EVENTS_PER_OUTLET, MAX_SPORT_EVENTS_PER_OUTLET
 from .output import FeedStatus, Previous, day_of, load_previous, within_window, write
 from .pages import write_pages
-from .sources import gdacs, gdelt, usgs, who
+from .sources import gdacs, gdelt, radar, usgs, who
 
 LOG = logging.getLogger("globe_pipeline")
 DEFAULT_PREVIOUS = "https://globe.krimadev.com/data"
@@ -123,6 +124,7 @@ def run(
     previous_location: str | None,
     now: datetime | None = None,
     site: Path | None = None,
+    radar_file: Path | None = None,
 ) -> list[Event]:
     """One full run. Returns the events written."""
     now = now or datetime.now(UTC)
@@ -155,7 +157,15 @@ def run(
         return found
 
     reports = _run_feed(who_status, fetch_reports, by_feed.get("who", []), now)
-    statuses += [usgs_status, gdacs_status, who_status]
+    radar_status = _status(radar, "data-feed", previous, now)
+
+    def fetch_outages() -> list[Event]:
+        found, stats = radar.fetch(gazetteer, now, radar_file)
+        radar_status.stats = stats
+        return found
+
+    outages = _run_feed(radar_status, fetch_outages, by_feed.get("radar", []), now)
+    statuses += [usgs_status, gdacs_status, who_status, radar_status]
 
     # News accumulates: last run's news plus the articles published since.
     news_status = _status(gdelt, "news", previous, now)
@@ -175,11 +185,12 @@ def run(
     statuses.append(news_status)
 
     events = balance_outlets(
-        cluster(web_links_only(within_window(quakes + alerts + reports + news, now)))
+        cluster(web_links_only(within_window(quakes + alerts + reports + outages + news, now)))
     )
     news_status.count = sum(1 for e in events if e.kind == "news")
     providers = [
-        {"name": m.SOURCE, "credit": m.CREDIT, "homepage": m.HOMEPAGE} for m in (usgs, gdacs, who)
+        {"name": m.SOURCE, "credit": m.CREDIT, "homepage": m.HOMEPAGE}
+        for m in (usgs, gdacs, who, radar)
     ]
     write(out, events, statuses, now, cursor, providers)
     if site is not None:
@@ -203,11 +214,21 @@ def main(argv: list[str] | None = None) -> int:
         help="URL prefix or folder of the last published data ('' for a fresh start)",
     )
     parser.add_argument(
+        "--radar",
+        type=Path,
+        help="Cloudflare Radar's saved outage list (default: .cache/radar/outages.json)",
+    )
+    parser.add_argument(
         "--site", type=Path, help="folder for news/ and sitemap.xml (default: the parent of --out)"
     )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    run(args.out, args.previous or None, site=args.site or args.out.parent)
+    run(
+        args.out,
+        args.previous or None,
+        site=args.site or args.out.parent,
+        radar_file=args.radar,
+    )
     return 0
 
 

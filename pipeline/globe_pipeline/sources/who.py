@@ -15,16 +15,13 @@ Rules (docs/sources.md, "WHO Disease Outbreak News"):
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from ..geocode import Gazetteer
+from ..geocode import Gazetteer, label_points
 from ..http import get_json
 from ..models import Event, Source, parse_iso
 from ..normalize import clean_text
@@ -43,9 +40,6 @@ URL = (
 REPORT_URL = "https://www.who.int/emergencies/disease-outbreak-news/item/{slug}"
 #: How long a report stays current after WHO publishes it.
 CURRENT_FOR = timedelta(days=14)
-COUNTRIES_FILE = (
-    Path(__file__).resolve().parents[3] / "frontend" / "public" / "geo" / "countries.json"
-)
 
 #: WHO's formal names for countries whose short name in the gazetteer differs, by ISO code.
 ALIASES: dict[str, str] = {
@@ -95,13 +89,6 @@ def countries_named(title: str, gazetteer: Gazetteer) -> list[str]:
         if iso2 not in ordered and iso2 in gazetteer.countries:
             ordered.append(iso2)
     return ordered
-
-
-@lru_cache(maxsize=1)
-def label_points() -> dict[str, tuple[float, float]]:
-    """Each country's label point (lat, lng) from Natural Earth (frontend/public/geo/)."""
-    countries = json.loads(COUNTRIES_FILE.read_text(encoding="utf-8"))
-    return {c["iso2"]: (c["label"][1], c["label"][0]) for c in countries if c.get("label")}
 
 
 def _report_key(title: str) -> str:

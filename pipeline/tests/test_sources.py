@@ -1,16 +1,18 @@
-"""The three sources, on synthetic data in each feed's format (no real headlines)."""
+"""The sources, on synthetic data in each feed's format (no real headlines)."""
 
 import http.client
 import io
 import zipfile
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from globe_pipeline import http as pipeline_http
+from globe_pipeline.geocode import label_points
 from globe_pipeline.http import FetchError
 from globe_pipeline.outlets import OUTLETS, clean_headline, is_sport_page, outlet_for_url
-from globe_pipeline.sources import gdacs, gdelt, usgs, who
+from globe_pipeline.sources import gdacs, gdelt, radar, usgs, who
 
 
 def usgs_feature(fid: str, mag: float, lat: float, lng: float, minutes_ago: int, now, alert=None):
@@ -430,8 +432,8 @@ def test_who_parse_places_rates_and_keeps_reports_14_days(gazetteer, now) -> Non
     assert measles.severity.label == "moderate"
 
 
-def test_who_label_points_cover_the_countries() -> None:
-    points = who.label_points()
+def test_label_points_cover_the_countries() -> None:
+    points = label_points()
     assert len(points) > 200
     lat, lng = points["CD"]
     assert -14 < lat < 6 and 12 < lng < 32
@@ -444,3 +446,72 @@ def test_who_deaths_in_the_summary_make_a_report_high(gazetteer, now) -> None:
     assert events[0].severity.label == "high"
     assert events[0].severity_reason == "WHO report counts 25 deaths"
     assert "summary" not in events[0].to_json() and events[0].snippet == ""
+
+
+# ---------- Cloudflare Radar outages (made-up annotations) ----------
+
+
+def radar_outage(oid: str, locations: list[str], kind: str, cause: str, now, **extra) -> dict:
+    return {
+        "id": oid,
+        "locations": locations,
+        "outage": {"outageType": kind, "outageCause": cause},
+        "startDate": (now - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "endDate": (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "description": "Made-up description of a test outage.",
+        "scope": "",
+        **extra,
+    }
+
+
+def radar_doc(*annotations: dict) -> dict:
+    return {"success": True, "result": {"annotations": list(annotations)}}
+
+
+def test_radar_parse_places_titles_and_rates(gazetteer, now) -> None:
+    doc = radar_doc(
+        radar_outage("1", ["BG", "JP"], "NATIONWIDE", "GOVERNMENT_DIRECTED", now),
+        radar_outage("2", ["YE"], "REGIONAL", "POWER_OUTAGE", now, scope="Test region"),
+        radar_outage(
+            "3",
+            [],
+            "NETWORK",
+            "CABLE_CUT",
+            now,
+            endDate=None,
+            asnsDetails=[{"asn": "64500", "name": "Test", "location": {"code": "RU"}}],
+        ),
+        radar_outage("4", ["ZZ"], "NATIONWIDE", "UNKNOWN", now),
+    )
+    events, stats = radar.parse(doc, gazetteer, now, WHO_POINTS)
+    by_id = {e.id: e for e in events}
+    assert sorted(by_id) == ["radar:1:BG", "radar:1:JP", "radar:2:YE", "radar:3:RU"]
+    assert stats == {"outages": 4, "ongoing": 1, "not_placed": 1}
+    shutdown = by_id["radar:1:BG"]
+    assert shutdown.title == "Internet outage in Bulgaria: government directed (nationwide)"
+    assert (shutdown.severity.label, shutdown.categories, shutdown.kind) == (
+        "critical",
+        ["cyber"],
+        "data-feed",
+    )
+    assert shutdown.snippet == "Made-up description of a test outage."
+    assert shutdown.until == now - timedelta(days=1)
+    assert by_id["radar:2:YE"].severity.label == "moderate"
+    assert by_id["radar:2:YE"].place == "Yemen (Test region)"
+    ongoing = by_id["radar:3:RU"]
+    assert (ongoing.severity.label, ongoing.until) == ("low", now)
+
+
+def test_radar_missing_or_failed_answer_is_an_error(gazetteer, now, tmp_path) -> None:
+    with pytest.raises(FetchError):
+        radar.fetch(gazetteer, now, tmp_path / "missing.json")
+    failed = tmp_path / "failed.json"
+    failed.write_text('{"success": false, "errors": [{"message": "test"}]}', encoding="utf-8")
+    with pytest.raises(FetchError):
+        radar.fetch(gazetteer, now, failed)
+
+
+def test_radar_job_asks_for_what_the_pipeline_expects() -> None:
+    """update.yml's radar job and tools/fetch_radar.py use the same request (radar.API_URL)."""
+    workflow = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "update.yml"
+    assert radar.API_URL in workflow.read_text(encoding="utf-8")

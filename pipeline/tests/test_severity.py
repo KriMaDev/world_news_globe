@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from globe_pipeline.severity import SEVERITY_COLORS, Severity, who_severity
+from globe_pipeline.severity import SEVERITY_COLORS, Severity, radar_severity, who_severity
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -70,3 +70,19 @@ def test_who_severity(title: str, summary: str, level: str) -> None:
     rated, reason = who_severity(title, summary)
     assert rated.label == level
     assert "WHO" in reason
+
+
+@pytest.mark.parametrize(
+    ("kind", "cause", "level"),
+    [
+        ("NATIONWIDE", "GOVERNMENT_DIRECTED", "critical"),
+        ("NATIONWIDE", "POWER_OUTAGE", "high"),
+        ("REGIONAL", "GOVERNMENT_DIRECTED", "moderate"),
+        ("REGIONAL", "CABLE_CUT", "moderate"),
+        ("NETWORK", "TECHNICAL_PROBLEM", "low"),
+        ("PLATFORM", "UNKNOWN", "low"),
+        ("SOMETHING_NEW", "", "low"),
+    ],
+)
+def test_radar_severity(kind: str, cause: str, level: str) -> None:
+    assert radar_severity(kind, cause)[0].label == level

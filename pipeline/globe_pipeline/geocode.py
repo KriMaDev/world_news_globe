@@ -13,12 +13,17 @@ import math
 import os
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from .models import Geo
 
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / ".cache" / "gazetteer" / "gazetteer.json.gz"
+#: Country shapes and label points (Natural Earth, written by tools/build_geo.py).
+COUNTRIES_FILE = (
+    Path(__file__).resolve().parents[2] / "frontend" / "public" / "geo" / "countries.json"
+)
 EARTH_RADIUS_KM = 6371.0
 #: A point within this distance of a city is placed at that city.
 CITY_RADIUS_KM = 75.0
@@ -155,6 +160,14 @@ class Gazetteer:
         city = found[0]
         admin1 = self.admin1.get(f"{city.country_code}.{city.admin1_code}")
         return self.geo_for_country(city.country_code, "region", admin1)
+
+
+@lru_cache(maxsize=1)
+def label_points() -> dict[str, tuple[float, float]]:
+    """Each country's label point (lat, lng) from Natural Earth: where a country-level
+    event from a data feed (WHO, Cloudflare Radar) is drawn."""
+    countries = json.loads(COUNTRIES_FILE.read_text(encoding="utf-8"))
+    return {c["iso2"]: (c["label"][1], c["label"][0]) for c in countries if c.get("label")}
 
 
 def place_name(geo: Geo, fallback: str) -> str:

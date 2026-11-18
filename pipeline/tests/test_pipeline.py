@@ -199,6 +199,7 @@ def test_failing_source_keeps_its_last_events(tmp_path, monkeypatch, gazetteer, 
     monkeypatch.setattr(run_module.Gazetteer, "load", classmethod(lambda cls, path=None: gazetteer))
     monkeypatch.setattr(run_module.usgs, "fetch", lambda g, n: [])
     monkeypatch.setattr(run_module.who, "fetch", lambda g, n: ([], {}))
+    monkeypatch.setattr(run_module.radar, "fetch", lambda g, n, p=None: ([], {}))
     monkeypatch.setattr(run_module.gdacs, "fetch", broken)
     monkeypatch.setattr(run_module.gdelt, "fetch", broken)
 
@@ -236,6 +237,7 @@ def _run_with_news(tmp_path, monkeypatch, gazetteer, now, found, stats):
     monkeypatch.setattr(run_module.Gazetteer, "load", classmethod(lambda cls, path=None: gazetteer))
     monkeypatch.setattr(run_module.usgs, "fetch", lambda g, n: [])
     monkeypatch.setattr(run_module.who, "fetch", lambda g, n: ([], {}))
+    monkeypatch.setattr(run_module.radar, "fetch", lambda g, n, p=None: ([], {}))
     monkeypatch.setattr(run_module.gdacs, "fetch", lambda g, n: [])
     cursor = now - timedelta(minutes=30)
     monkeypatch.setattr(run_module.gdelt, "fetch", lambda g, n, c: (found(kept), cursor, stats))

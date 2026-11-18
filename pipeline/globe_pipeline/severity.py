@@ -239,3 +239,26 @@ def who_severity(title: str, summary: str = "") -> Rated:
     if deaths:
         return Severity.MODERATE, f"WHO report counts {deaths:,} deaths (under 10)"
     return Severity.MODERATE, "WHO outbreak report (every report is at least moderate)"
+
+
+# ---------- Cloudflare Radar internet outages ----------
+
+RADAR_TYPES = {
+    "NATIONWIDE": Severity.HIGH,
+    "REGIONAL": Severity.MODERATE,
+    "NETWORK": Severity.LOW,
+    "PLATFORM": Severity.LOW,
+}
+
+
+def radar_severity(outage_type: str, outage_cause: str) -> Rated:
+    """A Radar outage by its reach: nationwide high, and critical when Radar marks it as
+    government-directed (an internet shutdown); regional moderate; one network or platform
+    low. An unknown type counts as one network."""
+    kind = outage_type.strip().upper()
+    cause = outage_cause.strip().upper()
+    if kind == "NATIONWIDE" and cause == "GOVERNMENT_DIRECTED":
+        return Severity.CRITICAL, "Nationwide internet shutdown ordered by a government (Radar)"
+    level = RADAR_TYPES.get(kind, Severity.LOW)
+    reach = {"NATIONWIDE": "Nationwide", "REGIONAL": "Regional"}.get(kind, "One network's")
+    return level, f"{reach} internet outage (Cloudflare Radar)"
