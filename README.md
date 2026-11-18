@@ -67,4 +67,6 @@ Deploying is described in [docs/deploy.md](docs/deploy.md).
 
 ## Licence
 
-Code: [MIT](LICENSE), © 2026 KriMa ([krimadev.com](https://krimadev.com)). News content belongs to its publishers. Data is credited to its sources as listed in [docs/sources.md](docs/sources.md).
+Code: [PolyForm Noncommercial 1.0.0](LICENSE), © 2026 KriMa ([krimadev.com](https://krimadev.com)), from version 1.10.0. You may read, run and change it for any non-commercial purpose: personal use, study, research, education, non-profit and public bodies. Commercial use needs written permission: write through [krimadev.com/contact](https://krimadev.com/contact/). Versions up to 1.9.0 were released under the MIT licence and stay so.
+
+The licence covers the code only. News headlines belong to their publishers. Data keeps its own terms and credits, listed in [docs/sources.md](docs/sources.md): for example, the place descriptions in `frontend/public/geo/places.json` quote Wikipedia under CC BY-SA 4.0, and Natural Earth is in the public domain.

@@ -35,6 +35,18 @@ test('Legal lists every right and how to have a headline removed', async ({ page
   await expect(page.locator('#corrections')).toContainText('a headline names you');
 });
 
+// Licence (owner, 18 November 2026): free for non-commercial use, commercial use by permission.
+test('Legal names the non-commercial licence and links its text', async ({ page }) => {
+  await serveWorld(page);
+  await page.goto('/legal/');
+  const licence = page.locator('#licence');
+  await expect(licence).toContainText('PolyForm Noncommercial License 1.0.0');
+  await expect(licence).toContainText('Commercial use needs written permission');
+  await expect(
+    licence.locator('a[href="https://polyformproject.org/licenses/noncommercial/1.0.0/"]'),
+  ).toHaveCount(1);
+});
+
 test('About says borders and names take no side', async ({ page }) => {
   await serveWorld(page);
   await page.goto('/about/');
