@@ -350,6 +350,9 @@ export async function createGlobeApp(
   let statesRequested = false;
   /** Zoomed right in: which zoom step the markers were last fanned out for. */
   let fanStep: number | null = null;
+  /** Rings are sized in degrees; below altitude 1 they shrink with the zoom, so up close a
+   * ring stays around its marker instead of covering the region. */
+  let ringScale = 1;
   /** Degrees that keep fanned-out markers apart on screen, at the widest view of a zoom step. */
   const fanSpacing = (step: number): number =>
     (screenRadiusDegrees(FAN_ZOOM_STEP ** (step + 1), 0) * 2 * FAN_SPACING_PX) /
@@ -442,8 +445,8 @@ export async function createGlobeApp(
     })
     .ringAltitude(RING_ALTITUDE)
     .ringColor((d: object) => ringColor(d as Cluster))
-    .ringMaxRadius((d) => ((d as Cluster).severity === 'critical' ? 5 : 3.2))
-    .ringPropagationSpeed((d) => ((d as Cluster).severity === 'critical' ? 3.2 : 2))
+    .ringMaxRadius((d) => ((d as Cluster).severity === 'critical' ? 5 : 3.2) * ringScale)
+    .ringPropagationSpeed((d) => ((d as Cluster).severity === 'critical' ? 3.2 : 2) * ringScale)
     .ringRepeatPeriod(
       (d: object) => (SEVERITY_STYLES[(d as Cluster).severity].pulseSeconds ?? 2) * 1000,
     )
@@ -639,6 +642,7 @@ export async function createGlobeApp(
     if (next === degrees && step === fanStep) return;
     degrees = next;
     fanStep = step;
+    ringScale = Math.min(1, Math.max(0.08, altitude));
     regroup();
   };
 

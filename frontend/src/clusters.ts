@@ -114,23 +114,38 @@ function groupNearby(events: GlobeEvent[], degrees: number): Cluster[] {
   return clusters;
 }
 
-/** Where the markers of a stack go, around its middle: rings of 6, 12, 18… (north, east). */
-function ringOffsets(count: number, spacing: number): [number, number][] {
-  const offsets: [number, number][] = [];
-  for (let ring = 1; offsets.length < count; ring += 1) {
-    const slots = Math.min(6 * ring, count - offsets.length);
-    for (let slot = 0; slot < slots; slot += 1) {
-      const angle = (2 * Math.PI * slot) / slots;
-      offsets.push([ring * spacing * Math.cos(angle), ring * spacing * Math.sin(angle)]);
-    }
-  }
-  return offsets;
+/** The most markers a pile is fanned out into: one ring. A bigger pile spread over several
+ * rings reached far from its place, and neighbouring piles' lines crossed into a web (seen over
+ * Britain, 18 Nov 2026). */
+export const MAX_FAN = 6;
+
+/** A pile too big to fan out, as one group per kind (disaster symbols and pillars stay
+ * apart, as in clusterEvents): it opens as a list, and splits up as the zoom comes closer. */
+function mergeByKind(stack: Cluster[]): Cluster[] {
+  const kinds = [stack.filter((c) => isDisaster(c.lead)), stack.filter((c) => !isDisaster(c.lead))];
+  return kinds
+    .filter((kind) => kind.length > 0)
+    .map((kind) => {
+      if (kind.length === 1) return kind[0]!;
+      const events = kind.flatMap((cluster) => cluster.events).sort(leadOrder);
+      const lead = events[0]!;
+      return {
+        id: `group:${lead.id}`,
+        lead,
+        events,
+        lat: lead.lat,
+        lng: lead.lng,
+        severity: lead.severity,
+      };
+    });
 }
 
 /**
  * Zoomed right in, markers closer than `spacing` degrees (or at the very same place) can't each
- * be tapped, so they move apart in rings around their middle, each remembering its true place.
- * Markers with room are left alone. A `spacing` of 0 does nothing.
+ * be tapped, so they move apart in a ring around their middle, each on its own side and
+ * remembering its true place.
+ * A pile of more than MAX_FAN stays a group instead. Markers with room are left alone. A
+ * `spacing` of 0 does nothing.
  */
 export function fanOut(clusters: Cluster[], spacing: number): Cluster[] {
   if (spacing <= 0) return clusters;
@@ -161,18 +176,28 @@ export function fanOut(clusters: Cluster[], spacing: number): Cluster[] {
     const key = `${row}:${col}`;
     grid.set(key, [...(grid.get(key) ?? []), stack]);
   }
-  return stacks.flatMap((stack) => {
+  return stacks.flatMap((pile) => {
+    const stack = pile.length > MAX_FAN ? mergeByKind(pile) : pile;
     if (stack.length === 1) return stack;
     const lat = stack.reduce((sum, c) => sum + c.lat, 0) / stack.length;
     const lng = stack.reduce((sum, c) => sum + c.lng, 0) / stack.length;
     const narrowing = Math.max(0.1, Math.cos(lat * RAD));
-    const offsets = ringOffsets(stack.length, spacing);
-    return stack.map((cluster, index) => ({
-      ...cluster,
-      lat: Math.max(-89, Math.min(89, lat + offsets[index]![0])),
-      lng: lng + offsets[index]![1] / narrowing,
-      anchor: { lat: cluster.lat, lng: cluster.lng },
-    }));
+    // Each marker takes the slot on its own side of the middle, in order around the ring, so
+    // the lines to the true places stay short and never cross. Markers at the very same
+    // place keep their order (most severe first, from the north).
+    const bearing = (c: Cluster): number => Math.atan2((c.lng - lng) * narrowing, c.lat - lat);
+    const together = stack.every((c) => c.lat === stack[0]!.lat && c.lng === stack[0]!.lng);
+    const order = together ? stack : [...stack].sort((a, b) => bearing(a) - bearing(b));
+    const start = together ? 0 : bearing(order[0]!);
+    return order.map((cluster, index) => {
+      const angle = start + (2 * Math.PI * index) / order.length;
+      return {
+        ...cluster,
+        lat: Math.max(-89, Math.min(89, lat + spacing * Math.cos(angle))),
+        lng: lng + (spacing * Math.sin(angle)) / narrowing,
+        anchor: { lat: cluster.lat, lng: cluster.lng },
+      };
+    });
   });
 }
 

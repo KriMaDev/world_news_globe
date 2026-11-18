@@ -5,6 +5,7 @@ import {
   clusterEvents,
   clusterOf,
   fanOut,
+  MAX_FAN,
   type Cluster,
 } from './clusters';
 import type { GlobeEvent, Severity } from './types';
@@ -110,8 +111,15 @@ describe('clusterEvents', () => {
 });
 
 describe('fanOut', () => {
-  const marker = (id: string, lat: number, lng: number): Cluster =>
-    ({ id, lead: { id }, events: [{ id }], lat, lng, severity: 'low' }) as unknown as Cluster;
+  const marker = (id: string, lat: number, lng: number, disaster = false): Cluster => {
+    const event = {
+      id,
+      categories: [disaster ? 'natural-disasters' : 'politics'],
+      severity: 'low',
+      published: '2026-11-08T00:00:00Z',
+    };
+    return { id, lead: event, events: [event], lat, lng, severity: 'low' } as unknown as Cluster;
+  };
 
   it('moves markers at the same place apart, each remembering its true place', () => {
     const out = fanOut([marker('a', 40, 10), marker('b', 40, 10), marker('c', 40, 10)], 1);
@@ -131,13 +139,24 @@ describe('fanOut', () => {
     ]);
   });
 
-  it('keeps many markers apart in more than one ring', () => {
+  it('fans out up to six markers, in one ring', () => {
     const out = fanOut(
-      Array.from({ length: 20 }, (_, i) => marker(String(i), 0, 0)),
+      Array.from({ length: MAX_FAN }, (_, i) => marker(String(i), 0, 0)),
       1,
     );
-    expect(new Set(out.map((c) => `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`)).size).toBe(20);
-    expect(out).toHaveLength(20);
+    expect(new Set(out.map((c) => `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`)).size).toBe(MAX_FAN);
+    for (const c of out) expect(angularDistance(0, 0, c.lat, c.lng)).toBeCloseTo(1, 3);
+  });
+
+  it('keeps a bigger pile as one group per kind, so it opens as a list', () => {
+    const pile = [
+      ...Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0)),
+      marker('d0', 0, 0, true),
+      marker('d1', 0, 0, true),
+    ];
+    const out = fanOut(pile, 1);
+    expect(out.map((c) => c.events.length).sort()).toEqual([2, 9]);
+    expect(out.every((c) => c.id.startsWith('group:'))).toBe(true);
   });
 
   it('does nothing with a spacing of 0', () => {

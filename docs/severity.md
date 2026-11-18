@@ -85,11 +85,13 @@ How many outlets cover a story is shown as **coverage**, separately. It never ra
 
 ### Markers that stand too close
 
-Zoomed right in, where no grouping happens, markers less than about 60 screen pixels apart (or at the very same place) move apart in rings, so each can be tapped. A thin line joins each one to its true place.
+Zoomed right in, where no grouping happens, markers less than about 60 screen pixels apart (or at the very same place) move apart in one ring of up to six, so each can be tapped. Each takes the slot on its own side, and a thin line joins it to its true place, so lines stay short and never cross. A pile of more than six stays a group (one per kind, see below), which opens as a list and splits up as the zoom comes closer (18 Nov 2026: bigger piles fanned over several rings had spread into a web of crossing lines).
+
+Markers keep about the same size on screen at every zoom, and below altitude 1 pillars also get shorter (down to 30 % at the closest zoom), with click areas 1.5 times the glowing spot. Before 18 Nov 2026 they grew about 5 times on screen when zoomed in, and tall pillars leaned over their neighbours. The high and critical rings shrink with the zoom too.
 
 ### Groups of events
 
-Where pillars would crowd (closer than 4°, 2° or 1° on screen depending on zoom; never when zoomed right in), they merge into one pillar (or one symbol: natural disasters and news are grouped separately, so a group is always one or the other). It takes the **highest severity among its events** and stands at that event's place, with a badge showing how many events it holds. Grouping never changes any event's own severity. Code: `frontend/src/clusters.ts`.
+Where pillars would crowd (closer than 4°, 2° or 1° on screen depending on zoom; zoomed right in only for piles too big to fan out, above), they merge into one pillar (or one symbol: natural disasters and news are grouped separately, so a group is always one or the other). It takes the **highest severity among its events** and stands at that event's place, with a badge showing how many events it holds. Grouping never changes any event's own severity. Code: `frontend/src/clusters.ts`.
 
 ### Geography view: country colours
 

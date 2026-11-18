@@ -49,8 +49,25 @@ const CORE_RADIUS = 0.36;
 const GLOW_RADIUS = 1.7;
 const SPOT_SIZE = 5.2;
 const HIT_RADIUS = 2.6;
-/** Camera distance at which pillars have their base width. */
-const REFERENCE_DISTANCE = 350;
+/** A pillar's click area is this much wider than its glowing spot: about a fingertip on a
+ * phone, and still narrower than the spacing of fanned-out markers (FAN_SPACING_PX). */
+const HIT_WIDENING = 1.5;
+/** The globe's radius in world units. */
+const GLOBE_RADIUS = 100;
+/** Camera height above the surface at which markers have their base size. */
+const REFERENCE_HEIGHT = 250;
+/**
+ * Below that height markers shrink almost as fast as the camera comes down, so they keep about
+ * the same size on screen (growing only gently). Sized by the distance to the centre instead,
+ * they grew about 5 times on screen at the closest zoom and covered each other (fixed 18 Nov
+ * 2026).
+ */
+const CLOSE_GROWTH = 0.85;
+/** Below this camera height (altitude 1) pillars also get shorter, down to SHORTEST of their
+ * height at the closest zoom: short beacons can't lean over their neighbours, so each marker
+ * in a fan stays clickable. */
+const SHORTEN_BELOW = 100;
+const SHORTEST = 0.3;
 const SELECTED_SCALE = 1.35;
 /** A disaster symbol's quad side for a low-severity event (the disc fills DISC_RADIUS of it). */
 const SYMBOL_SIZE = 7;
@@ -488,15 +505,18 @@ export class PillarField {
   }
 
   /**
-   * Sizes every pillar for the camera's distance (slim when zoomed in, visible when zoomed
-   * out) and the selection. Only recomputed when either changes noticeably.
+   * Sizes every marker for the camera's height (about the same size on screen at every zoom;
+   * pillars shorter close up) and the selection. Only recomputed when either changes
+   * noticeably.
    */
   update(cameraDistance: number, selectedId: string | null): void {
-    const zoom = Math.min(1.3, Math.max(0.3, cameraDistance / REFERENCE_DISTANCE));
+    const above = Math.max(1, cameraDistance - GLOBE_RADIUS);
+    const zoom = Math.min(1.3, (above / REFERENCE_HEIGHT) ** CLOSE_GROWTH);
     if (Math.abs(zoom - this.lastZoom) < 0.005 && selectedId === this.lastSelected) return;
     this.lastZoom = zoom;
     this.lastSelected = selectedId;
-    const heightZoom = Math.min(1.2, Math.max(0.5, zoom));
+    const shorten = Math.min(1, Math.max(SHORTEST, above / SHORTEN_BELOW));
+    const heightZoom = Math.min(1.2, zoom) * shorten;
     for (const level of this.levels) {
       const style = SEVERITY_STYLES[level.severity];
       const size = Math.sqrt(style.size);
@@ -525,7 +545,8 @@ export class PillarField {
           matrix.compose(anchor.position, anchor.turn, scale);
           part.mesh.setMatrixAt(index, matrix);
         }
-        this.hits.get(anchor.cluster.id)?.scale.set(width, height, width);
+        const reach = width * HIT_WIDENING;
+        this.hits.get(anchor.cluster.id)?.scale.set(reach, height, reach);
       });
       for (const part of level.parts) part.mesh.instanceMatrix.needsUpdate = true;
     }
