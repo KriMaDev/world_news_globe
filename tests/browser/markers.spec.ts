@@ -3,7 +3,7 @@
  * stories in one spot, some could not be clicked at the closest zoom). Made-up events only.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { altitude, openGlobe, syntheticEvent } from './fixtures';
+import { altitude, openGlobe, settledView, syntheticEvent } from './fixtures';
 
 const SEVERITIES = ['critical', 'low', 'moderate', 'low', 'high', 'low'];
 
@@ -48,7 +48,10 @@ async function zoomIntoTestland(page: Page, events: ReturnType<typeof pile>): Pr
     await page.evaluate(() => document.getElementById('zoom-in')?.click());
     await page.waitForTimeout(400);
   }
-  await page.waitForTimeout(1500);
+  // The tests block NASA's tiles: the zoom still goes all the way in (it used to stop at 0.5
+  // until a tile had loaded). Wait for the camera to arrive and stop before hovering.
+  await expect.poll(() => altitude(page), { timeout: 20_000 }).toBeLessThan(0.2);
+  await settledView(page);
 }
 
 /** Headlines whose hover label shows somewhere in a grid around the middle of the screen. */
@@ -77,9 +80,6 @@ test('six stories in one spot can each be reached at the closest zoom', async ({
   test.skip(isMobile, 'Hovering needs a mouse; phones tap the same markers');
   test.setTimeout(120_000);
   await zoomIntoTestland(page, pile());
-  // The tests block NASA's tiles: the zoom still goes all the way in (it used to stop at 0.5
-  // until a tile had loaded).
-  expect(await altitude(page)).toBeLessThan(0.2);
   await expect(page.locator('#globe')).toHaveAttribute('data-fanned', '6');
   expect([...(await reachable(page))].sort()).toEqual(
     SEVERITIES.map((_, i) => `Made-up headline number ${i}`),
