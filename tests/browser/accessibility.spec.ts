@@ -169,14 +169,14 @@ test.describe('keyboard and screen readers', () => {
   }) => {
     await openWorld(page);
     if (isMobile) await page.locator('.legend-toggle').click();
-    const control = page.locator('.legend-symbols summary');
+    const control = page.locator('.legend-markers .legend-symbols summary');
     await expect(control).toHaveText('Show disaster symbols');
     await expect(control).toHaveCSS('text-decoration-line', 'underline');
     if (isMobile) expect((await control.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     await control.focus();
     await page.keyboard.press('Enter');
     await expect(control).toHaveText('Hide disaster symbols');
-    await expect(page.locator('.legend-symbols ul')).toBeVisible();
+    await expect(page.locator('.legend-markers .legend-symbols ul')).toBeVisible();
   });
 });
 

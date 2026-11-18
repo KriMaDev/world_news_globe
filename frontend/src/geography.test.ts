@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   angularDegrees,
   countryCounts,
+  countryNews,
   countrySeverity,
   factRows,
   formatPopulation,
@@ -15,7 +16,7 @@ import {
   type GeographyData,
   type MapLabel,
 } from './geography';
-import type { GlobeEvent, Severity } from './types';
+import type { Category, GlobeEvent, Severity } from './types';
 
 function event(id: string, code: string | null, severity: Severity): GlobeEvent {
   return {
@@ -156,6 +157,68 @@ describe('countrySeverity', () => {
   });
 });
 
+describe('countryNews', () => {
+  const news = (
+    id: string,
+    severity: Severity,
+    categories: Category[],
+    extra: Partial<GlobeEvent> = {},
+  ): GlobeEvent => ({ ...event(id, 'FR', severity), categories, ...extra });
+
+  it('takes the category of the most severe news, and counts the others', () => {
+    const fr = countryNews([
+      news('a', 'low', ['sport']),
+      news('b', 'low', ['sport']),
+      news('c', 'high', ['crime']),
+      news('d', 'moderate', ['economic']),
+    ]).get('FR')!;
+    expect(fr.severity).toBe('high');
+    expect(fr.category).toBe('crime');
+    // Main first, then by highest severity: economic (moderate) before sport (low, but more).
+    expect(fr.categories.map((c) => [c.category, c.count])).toEqual([
+      ['crime', 1],
+      ['economic', 1],
+      ['sport', 2],
+    ]);
+  });
+
+  it('picks the category most of the most severe events have, ties by the category order', () => {
+    const most = countryNews([
+      news('a', 'high', ['health']),
+      news('b', 'high', ['health', 'politics']),
+      news('c', 'high', ['war']),
+    ]).get('FR')!;
+    expect(most.category).toBe('health');
+    const tie = countryNews([news('a', 'high', ['sport']), news('b', 'high', ['politics'])]);
+    expect(tie.get('FR')!.category).toBe('politics');
+  });
+
+  it('counts only the categories the filters let through', () => {
+    const events = [news('a', 'critical', ['war', 'politics']), news('b', 'low', ['sport'])];
+    const allowed = new Set<Category>(['politics', 'sport']);
+    const fr = countryNews(events, allowed).get('FR')!;
+    expect(fr.category).toBe('politics');
+    expect(fr.categories.map((c) => c.category)).toEqual(['politics', 'sport']);
+    expect(countryNews(events, new Set<Category>(['economic'])).has('FR')).toBe(false);
+  });
+
+  it("gives a disaster's own type, from the newest most severe one", () => {
+    const fr = countryNews([
+      news('a', 'high', ['natural-disasters'], { hazard: 'EQ', published: '2026-11-08T10:00:00Z' }),
+      news('b', 'high', ['natural-disasters'], { hazard: 'FL', published: '2026-11-08T12:00:00Z' }),
+      news('c', 'low', ['natural-disasters'], { hazard: 'WF', published: '2026-11-08T13:00:00Z' }),
+    ]).get('FR')!;
+    expect([fr.category, fr.hazard]).toEqual(['natural-disasters', 'FL']);
+    expect(countryNews([news('a', 'low', ['war'], { hazard: 'EQ' })]).get('FR')!.hazard).toBe(null);
+  });
+
+  it('agrees with the colour rule', () => {
+    const events = [event('a', 'UA', 'low'), event('b', 'UA', 'high'), event('d', 'JP', 'low')];
+    const colours = countrySeverity(events);
+    for (const [code, item] of countryNews(events)) expect(item.severity).toBe(colours.get(code));
+  });
+});
+
 const data: GeographyData = {
   countries: [
     {
@@ -236,6 +299,21 @@ describe('labelsFor', () => {
   it('gives the Atlas everything, with capitals', () => {
     const kinds = new Set(labelsFor(0.3, data, 'atlas').map((l) => l.kind));
     for (const kind of ['river', 'lake', 'peak', 'range', 'capital']) expect(kinds).toContain(kind);
+  });
+
+  it('gives a small country with news its symbol alone until its name shows, after every name', () => {
+    const news = new Map([['LU', {}]]);
+    const far = labelsFor(2.4, data, 'geo', news);
+    const lu = far.find((l) => l.iso2 === 'LU')!;
+    expect(lu).toMatchObject({ id: 'symbol:LU', symbolOnly: true });
+    expect(Math.max(...far.filter((l) => !l.symbolOnly).map(labelPriority))).toBeLessThan(
+      labelPriority(lu),
+    );
+    // Without news, or on the Atlas, nothing; close up, its ordinary named label.
+    expect(labelsFor(2.4, data, 'geo').some((l) => l.iso2 === 'LU')).toBe(false);
+    expect(labelsFor(2.4, data, 'atlas', news).some((l) => l.iso2 === 'LU')).toBe(false);
+    const close = labelsFor(0.3, data, 'geo', news).filter((l) => l.iso2 === 'LU');
+    expect(close.map((l) => [l.id, l.symbolOnly])).toEqual([['country:LU', undefined]]);
   });
 
   it('shows US states closer in, and their capitals closer still', () => {

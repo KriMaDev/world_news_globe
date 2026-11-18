@@ -531,6 +531,75 @@ button {
   display: block;
 }
 
+/* The country symbols list belongs to the Geography map only. */
+.legend-country-symbols {
+  display: none;
+}
+
+.geo-view .legend-country-symbols {
+  display: block;
+}
+
+/* Geography map: a country's label with the symbol of its main news, its name and "+2" for its
+   other categories (rule in docs/severity.md). The symbol's colour is its severity's. */
+.map-label.has-news {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.map-label .news-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: rgb(238 241 244);
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 95%)) drop-shadow(0 0 5px rgb(0 0 0 / 70%));
+}
+
+/* The name's own colour and shadow, so it reads on the brightest country colours too. */
+.map-label-more {
+  letter-spacing: 0.04em;
+}
+
+/* Only the symbol: a small country before its name shows, or a name with no room. A dark disc
+   keeps it readable on any colour. */
+.map-label.is-symbol-only,
+.map-label.is-compact {
+  padding: 1px;
+  border-radius: 50%;
+  background: rgb(5 8 12 / 62%);
+}
+
+.map-label.is-symbol-only .map-label-name,
+.map-label.is-symbol-only .map-label-more,
+.map-label.is-compact .map-label-name,
+.map-label.is-compact .map-label-more {
+  display: none;
+}
+
+/* Country card: every category in the country's news, with its symbol and count. */
+.place-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  margin: 0.2rem 0 0.6rem;
+  padding: 0;
+  list-style: none;
+  font: 500 0.6875rem/1.4 var(--ff-mono);
+  letter-spacing: 0.04em;
+}
+
+.place-categories li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.place-categories .news-icon {
+  width: 18px;
+  height: 18px;
+}
+
 /* ---------- Keyboard list of events ---------- */
 
 .event-list ul {
@@ -1081,6 +1150,17 @@ html.app body {
   margin: 0.45rem 0 0;
   padding: 0;
   list-style: none;
+}
+
+/* "Natural disasters, by type": a heading across both columns. */
+.legend-symbols li.legend-symbols-group {
+  display: block;
+  grid-column: 1 / -1;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font: 500 0.6875rem/1.4 var(--ff-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .legend-symbols li {

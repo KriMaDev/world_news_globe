@@ -29,7 +29,7 @@ import {
   type FilterState,
 } from './filters';
 import { parseFeeds } from './feeds';
-import { CATEGORIES, SEVERITIES } from './types';
+import { CATEGORIES, CATEGORY_LABELS, SEVERITIES } from './types';
 import { createFilterPanel, type Counts } from './ui/filter-panel';
 import { createNewsPanel } from './ui/news-panel';
 import { createTimeline } from './ui/timeline';
@@ -38,7 +38,7 @@ import { placeAltitude, placeCenter, placeNames } from './places';
 import {
   countryCounts,
   countryLabel,
-  countrySeverity,
+  countryNews,
   formatPopulation,
   type GeographyData,
   type MapLabel,
@@ -431,7 +431,7 @@ function applyFilters(): void {
   updateAddress();
   if (app) {
     app.setEvents(events);
-    if (mapView !== 'news' && geoData) app.setGeography(geoData, countrySeverity(events), mapView);
+    if (mapView !== 'news' && geoData) app.setGeography(geoData, newsByCountry(), mapView);
     renderEventList(list, events, listHandlers);
     if (allEvents.length > 0 && !loadingHistory) {
       // A short hint when filters leave nothing, unless a whole group was switched off on
@@ -584,10 +584,26 @@ async function setMapView(next: MapView): Promise<void> {
     await loadAtlas(geoData);
     if (mapView !== 'atlas') return; // Switched away while it was loading.
   }
-  app?.setGeography(mapView === 'news' ? null : geoData, countrySeverity(events), mapView);
+  app?.setGeography(mapView === 'news' ? null : geoData, newsByCountry(), mapView);
   applyFilters();
   // The map first, the texts for the cards after it.
   if (mapView !== 'news') void loadPlaces();
+}
+
+/** Each country's news for the current filters and time window: its colour and its symbol. */
+function newsByCountry(): ReturnType<typeof countryNews> {
+  return countryNews(events, filters.categories);
+}
+
+/** "Main news: War · also Politics, Economic", for a country's hover label. */
+function countryNewsLine(iso2: string): string | null {
+  const news = countryNews(
+    events.filter((e) => e.geo?.country_code === iso2),
+    filters.categories,
+  ).get(iso2);
+  if (!news) return null;
+  const [main, ...others] = news.categories.map((c) => CATEGORY_LABELS[c.category]);
+  return others.length ? `Main news: ${main} · also ${others.join(', ')}` : `Main news: ${main}`;
 }
 
 /** "12 events: 3 high, 9 low", for the current filters and time window. */
@@ -614,7 +630,11 @@ function describeCountry(iso2: string): string[] {
     facts?.population ? `${formatPopulation(facts.population)} people` : null,
   ].filter(Boolean);
   if (basics.length) lines.push(basics.join(' · '));
-  if (mapView === 'geo') lines.push(countryEventSummary(iso2) ?? 'No news in the current filters');
+  if (mapView === 'geo') {
+    lines.push(countryEventSummary(iso2) ?? 'No news in the current filters');
+    const main = countryNewsLine(iso2);
+    if (main) lines.push(main);
+  }
   lines.push(`Click for more about ${country?.name ?? 'this country'}`);
   return lines;
 }
@@ -666,13 +686,15 @@ function chooseCountry(iso2: string): void {
       e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && currentIn(e, from, to),
   );
   const here = mapView === 'geo' ? events.filter((e) => e.geo?.country_code === iso2) : [];
-  const severity = countrySeverity(here).get(iso2);
+  const news = countryNews(here, filters.categories).get(iso2);
+  const severity = news?.severity;
   setAccent(severity ? SEVERITY_STYLES[severity].color : null);
   openPlace(countryLabel(country), {
     where: [country.region, country.continent].filter(Boolean).join(' · '),
     events:
       mapView === 'geo'
         ? {
+            categories: news?.categories ?? [],
             list: here.length
               ? eventRows(here, (event) =>
                   openEvent(event, true, () => chooseCountry(iso2), `← Back to ${country.name}`),

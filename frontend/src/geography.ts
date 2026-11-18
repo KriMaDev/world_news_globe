@@ -7,7 +7,7 @@
  * /geo/places.json (Wikidata CC0 and Wikipedia CC BY-SA 4.0, made by tools/build_places.py).
  */
 
-import { SEVERITIES, type GlobeEvent, type Severity } from './types';
+import { CATEGORIES, SEVERITIES, type Category, type GlobeEvent, type Severity } from './types';
 
 export interface CountryShape {
   iso2: string;
@@ -90,6 +90,9 @@ export interface MapLabel {
   wikidata: string | null;
   /** Countries only. */
   iso2?: string;
+  /** A country with news whose name doesn't show yet at this zoom: only its symbol shows, and
+   * only where it fits after every name (Geography map). */
+  symbolOnly?: boolean;
   /** Peaks only, in metres. */
   elevation?: number;
   /** Natural Earth rank: lower is more important. */
@@ -112,6 +115,81 @@ export function countrySeverity(events: GlobeEvent[]): Map<string, Severity> {
     if (!current || SEVERITIES.indexOf(event.severity) > SEVERITIES.indexOf(current)) {
       result.set(code, event.severity);
     }
+  }
+  return result;
+}
+
+/** A country's news on the Geography map: its colour, its symbol and every category in it. */
+export interface CountryNews {
+  /** The highest severity among its events (the colour rule above). */
+  severity: Severity;
+  /** The category of its main news: the symbol shown on the country. */
+  category: Category;
+  /** Natural disasters: the type of the newest most severe one (its symbol), or null. */
+  hazard: string | null;
+  /** Every category among its events with how many events have it, the main one first, then
+   * by highest severity, by count and in the order of CATEGORIES. */
+  categories: { category: Category; count: number; severity: Severity }[];
+}
+
+const rankOf = (severity: Severity): number => SEVERITIES.indexOf(severity);
+
+/**
+ * The symbol rule (docs/severity.md, "Geography view"): among a country's events at its highest
+ * severity, the category most of them have; a tie goes to the first in the order of CATEGORIES.
+ * Only categories that `allowed` (the category filter) lets through count, and an event with two
+ * categories counts for both. Colour and symbol so always come from the same, most severe news.
+ */
+export function countryNews(
+  events: GlobeEvent[],
+  allowed: ReadonlySet<Category> = new Set(CATEGORIES),
+): Map<string, CountryNews> {
+  const byCountry = new Map<string, GlobeEvent[]>();
+  for (const event of events) {
+    const code = event.geo?.country_code;
+    if (!code) continue;
+    const list = byCountry.get(code);
+    if (list) list.push(event);
+    else byCountry.set(code, [event]);
+  }
+  const result = new Map<string, CountryNews>();
+  for (const [code, list] of byCountry) {
+    const stats = new Map<Category, { count: number; severity: Severity; top: number }>();
+    let severity: Severity = 'low';
+    for (const event of list)
+      if (rankOf(event.severity) > rankOf(severity)) severity = event.severity;
+    for (const event of list) {
+      for (const category of event.categories) {
+        if (!allowed.has(category)) continue;
+        const stat = stats.get(category) ?? { count: 0, severity: event.severity, top: 0 };
+        stat.count += 1;
+        if (rankOf(event.severity) > rankOf(stat.severity)) stat.severity = event.severity;
+        if (event.severity === severity) stat.top += 1;
+        stats.set(category, stat);
+      }
+    }
+    if (stats.size === 0) continue;
+    const order = [...stats.entries()].sort(
+      ([a, sa], [b, sb]) =>
+        sb.top - sa.top ||
+        rankOf(sb.severity) - rankOf(sa.severity) ||
+        sb.count - sa.count ||
+        CATEGORIES.indexOf(a) - CATEGORIES.indexOf(b),
+    );
+    const category = order[0][0];
+    let hazard: string | null = null;
+    if (category === 'natural-disasters') {
+      const newest = list
+        .filter((e) => e.severity === severity && e.categories.includes(category))
+        .sort((a, b) => Date.parse(b.published) - Date.parse(a.published))[0];
+      hazard = newest?.hazard ?? null;
+    }
+    result.set(code, {
+      severity,
+      category,
+      hazard,
+      categories: order.map(([c, s]) => ({ category: c, count: s.count, severity: s.severity })),
+    });
   }
   return result;
 }
@@ -180,7 +258,7 @@ const KIND_ORDER: Record<LabelKind, number> = {
 /** Which label wins where two would overlap: oceans, then countries, seas, ranges, deserts,
  * lakes and rivers, then peaks; within a kind, the more important (lower rank) first. */
 export function labelPriority(label: MapLabel): number {
-  return KIND_ORDER[label.kind] * 100 + label.rank;
+  return (label.symbolOnly ? 5 : KIND_ORDER[label.kind]) * 100 + label.rank;
 }
 
 /** Degrees along the globe's surface between two places. */
@@ -266,7 +344,7 @@ export function labelsInView(
   );
   // Countries come first, then capitals, leaving only what the shares can actually use.
   const room = limit - shares.reduce((sum, picked) => sum + picked.length, 0);
-  const first = ordered.filter((label) => FIRST_KINDS.has(label.kind));
+  const first = ordered.filter((label) => FIRST_KINDS.has(label.kind) && !label.symbolOnly);
   // A wide view holds more countries than fit, so the capitals nearest the middle are kept too.
   first
     .filter((label) => label.kind !== 'country')
@@ -341,17 +419,21 @@ function stateCapitalLabel(capital: GeoLabels['stateCapitals'][number]): MapLabe
   };
 }
 
-/** The labels to show at a camera altitude, on the Geography map or the Atlas. */
+/** The labels to show at a camera altitude, on the Geography map or the Atlas. `news` holds the
+ * countries with news (Geography map): those too small for their name yet get their symbol. */
 export function labelsFor(
   altitude: number,
   data: GeographyData,
   view: MapView = 'atlas',
+  news: ReadonlyMap<string, unknown> = new Map(),
 ): MapLabel[] {
   const level = labelLevel(altitude);
   const labels: MapLabel[] = [];
   for (const country of data.countries) {
-    if (country.rank > LIMITS.country[level]) continue;
-    labels.push(countryLabel(country));
+    if (country.rank <= LIMITS.country[level]) labels.push(countryLabel(country));
+    else if (view === 'geo' && news.has(country.iso2)) {
+      labels.push({ ...countryLabel(country), id: `symbol:${country.iso2}`, symbolOnly: true });
+    }
   }
   if (LIMITS.capital[level] >= 0) labels.push(...data.labels.capitals.map(capitalLabel));
   if (LIMITS.state[level] >= 0) labels.push(...data.labels.states.map(stateLabel));

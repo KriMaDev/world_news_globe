@@ -4,7 +4,8 @@
  * share one set of columns (sample, name, explanation).
  */
 
-import { HAZARD_ICONS, iconSvg } from '../globe/hazard-icons';
+import { CATEGORY_ICONS } from '../globe/category-icons';
+import { HAZARD_ICONS, iconSvg, type HazardIcon } from '../globe/hazard-icons';
 import { SEVERITY_STYLES } from '../severity';
 import { SEVERITIES, type Severity } from '../types';
 
@@ -75,9 +76,13 @@ function pillar(
 
 /** A small glass disc with a symbol, like those on the globe. */
 export function symbolBadge(code: string): HTMLSpanElement {
+  const icon = HAZARD_ICONS.find((i) => i.code === code) ?? HAZARD_ICONS[HAZARD_ICONS.length - 1];
+  return badgeOf(icon);
+}
+
+function badgeOf(icon: HazardIcon): HTMLSpanElement {
   const badge = span('legend-symbol');
   badge.setAttribute('aria-hidden', 'true');
-  const icon = HAZARD_ICONS.find((i) => i.code === code) ?? HAZARD_ICONS[HAZARD_ICONS.length - 1];
   badge.append(iconSvg(icon, SAMPLE_COLOR));
   return badge;
 }
@@ -105,19 +110,28 @@ function markerRows(): HTMLUListElement {
   ]);
 }
 
-/** Every symbol by name, on request. */
-function symbolList(): HTMLDetailsElement {
+/** Every symbol by name, on request: the disasters' (News map) or the categories' (Geography
+ * map, where natural disasters show their own type's symbol). */
+function symbolList(
+  icons: (HazardIcon | string)[],
+  what: string,
+  className = '',
+): HTMLDetailsElement {
   const details = document.createElement('details');
-  details.className = 'legend-symbols';
+  details.className = `legend-symbols ${className}`.trim();
   const summary = document.createElement('summary');
-  summary.textContent = 'Show disaster symbols';
+  summary.textContent = `Show ${what}`;
   details.addEventListener('toggle', () => {
-    summary.textContent = `${details.open ? 'Hide' : 'Show'} disaster symbols`;
+    summary.textContent = `${details.open ? 'Hide' : 'Show'} ${what}`;
   });
   const list = document.createElement('ul');
-  for (const icon of HAZARD_ICONS) {
+  for (const icon of icons) {
     const item = document.createElement('li');
-    item.append(symbolBadge(icon.code), span('', icon.label));
+    // A string is a heading for the symbols after it.
+    if (typeof icon === 'string') {
+      item.className = 'legend-symbols-group';
+      item.textContent = icon;
+    } else item.append(badgeOf(icon), span('', icon.label));
     list.append(item);
   }
   details.append(summary, list);
@@ -205,14 +219,24 @@ export function renderLegend(root: HTMLElement): void {
     ),
     heading('On the globe', 'legend-title legend-section'),
     markerRows(),
-    symbolList(),
+    symbolList(HAZARD_ICONS, 'disaster symbols'),
   );
   more.append(
     markers,
     // Shown on the Geography map only (by CSS, body.geo-view).
     paragraph(
       'legend-geo-note',
-      'Countries take the colour of their most severe event. Tap a country for its news.',
+      'Countries take the colour of their most severe event and the symbol of its category ("+2": two more categories). Tap a country for its news.',
+    ),
+    // The categories, then the disasters' own symbols, which a country shows for its disaster.
+    symbolList(
+      [
+        ...Object.values(CATEGORY_ICONS).filter((icon) => icon.code !== 'natural-disasters'),
+        'Natural disasters, by type',
+        ...HAZARD_ICONS,
+      ],
+      'country symbols',
+      'legend-country-symbols',
     ),
     link,
   );

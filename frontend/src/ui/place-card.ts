@@ -6,7 +6,11 @@
  * Built from text nodes only.
  */
 
-import { factRows, type MapLabel, type PlaceFacts } from '../geography';
+import { factRows, type CountryNews, type MapLabel, type PlaceFacts } from '../geography';
+import { CATEGORY_ICONS } from '../globe/category-icons';
+import { iconSvg } from '../globe/hazard-icons';
+import { SEVERITY_STYLES } from '../severity';
+import { CATEGORY_LABELS } from '../types';
 
 export interface PlaceCardInput {
   label: MapLabel;
@@ -15,9 +19,13 @@ export interface PlaceCardInput {
   facts?: PlaceFacts;
   /** When the facts and text were fetched (YYYY-MM-DD). */
   asOf?: string | null;
-  /** Countries on the Geography map: their headlines (null when there are none), and a way to
-   * show only those on the other views. */
-  events?: { list: HTMLElement | null; onShow?: () => void } | null;
+  /** Countries on the Geography map: every category in their news (main first), their
+   * headlines (null when there are none), and a way to show only those on the other views. */
+  events?: {
+    categories?: CountryNews['categories'];
+    list: HTMLElement | null;
+    onShow?: () => void;
+  } | null;
 }
 
 const LICENCE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/';
@@ -68,8 +76,22 @@ export function placeCardParts(input: PlaceCardInput): HTMLElement[] {
 
   if (input.events) {
     const block = el('div', 'place-events');
+    block.append(el('h3', 'card-subtitle', 'News here now'));
+    const categories = input.events.categories ?? [];
+    if (categories.length) {
+      // Each category with its symbol in the colour of its most severe event, and its count.
+      const row = el('ul', 'place-categories');
+      row.setAttribute('aria-label', 'Categories in this news');
+      for (const { category, count, severity } of categories) {
+        const item = el('li', '');
+        const icon = iconSvg(CATEGORY_ICONS[category], SEVERITY_STYLES[severity].color);
+        icon.classList.add('news-icon');
+        item.append(icon, el('span', '', `${CATEGORY_LABELS[category]} ${count}`));
+        row.append(item);
+      }
+      block.append(row);
+    }
     block.append(
-      el('h3', 'card-subtitle', 'News here now'),
       input.events.list ?? el('p', '', 'No news here in the current filters and time window.'),
     );
     if (input.events.onShow) {

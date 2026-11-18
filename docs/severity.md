@@ -102,6 +102,18 @@ Where pillars would crowd (closer than 4°, 2° or 1° on screen depending on zo
 
 Each country takes the **highest severity among its events** that pass the current filters and time window, matched by the event's `geo.country_code`. Countries without such events stay a neutral tint. Events without a country (e.g. remote earthquakes at sea) do not colour any country. Code: `countrySeverity` in `frontend/src/geography.ts`.
 
+### Geography view: country symbols (since 1.13.0)
+
+Each country with news also shows **one symbol**, for the category of its main news, inside its name label (owner's decision, 19 Nov 2026: one symbol per country, no hatching or other extra layer, which older devices would struggle with):
+
+1. Take the country's events that pass the current filters and time window (the same events as the colour). Keep those at the country's highest severity.
+2. Count their categories. Only categories the category filter lets through count, and an event with two categories counts for both. The category most of them have wins; a tie goes to the first in the fixed order (War, Politics, Natural disasters, Economic, Technology advancements, Cyber & outages, Health & outbreaks, Climate & environment, Crime & justice, Humanitarian & migration, Science & space, Sport). So colour and symbol always come from the same, most severe news.
+3. Natural disasters show the disaster's own symbol (earthquake, flood and so on, as on the News map): that of the newest disaster at the country's highest severity, or the warning sign when its type is unknown.
+4. "+2" after the name: the number of other categories among all the country's events. The country's card lists every category with its count.
+5. The symbol is drawn in its severity's colour. Small countries whose name doesn't show yet at this zoom show their symbol alone, and only where it fits after every name has been placed; a name with no room is tried as its symbol alone before it is hidden. Symbols never cover a name.
+
+Code: `countryNews` in `frontend/src/geography.ts`, the symbols in `frontend/src/globe/category-icons.ts` (our own drawings).
+
 ### Known limits
 
 - Most news is low: a headline without a death count or a listed hazard term is low, however important the story. This keeps the rule checkable rather than guessing importance.

@@ -37,13 +37,16 @@ import {
   screenRadiusDegrees,
   flyTiltDegrees,
   lakeLabel,
+  type CountryNews,
   type GeographyData,
   type LakeShape,
   type MapLabel,
   type MapView,
 } from '../geography';
 import { SEVERITY_STYLES } from '../severity';
-import { hazardLabel, type GlobeEvent, type Severity } from '../types';
+import { CATEGORY_LABELS, hazardLabel, type GlobeEvent, type Severity } from '../types';
+import { CATEGORY_ICONS } from './category-icons';
+import { HAZARD_ICONS, iconIndex, iconSvg, type HazardIcon } from './hazard-icons';
 import { createAtmosphere } from './atmosphere';
 import { createDayNightMaterial, setSunDirection } from './daynight';
 import { DetailLayer } from './detail';
@@ -88,7 +91,8 @@ export interface GlobeApp {
   setCardOpen(open: boolean): void;
   /** Which map to draw: the Geography map or the Atlas with this data, or the News map with
    * null. Call again whenever the filtered events change. */
-  setGeography(data: GeographyData | null, severities: Map<string, Severity>, view: MapView): void;
+  /** The map, each country's news (colour and symbol) and which of the three maps shows. */
+  setGeography(data: GeographyData | null, news: Map<string, CountryNews>, view: MapView): void;
   rotateBy(degreesLng: number, degreesLat: number): void;
   /** Back to the view the globe opens on, at its starting distance. */
   showWholeGlobe(): void;
@@ -121,6 +125,8 @@ const LABEL_REFRESH_DEGREES = 8;
 const FOLLOW_VIEW_MS = 200;
 /** How long to wait for globe.gl to finish building the country shapes. */
 const ADOPT_MAX_FRAMES = 240;
+/** Screen space a country's symbol takes when it shows without its name (half sizes, px). */
+const SYMBOL_HALF: [number, number] = [11, 11];
 /** Screen space a count badge keeps clear of labels (half width, half height in px). */
 const BADGE_HALF: [number, number] = [14, 10];
 /** Panels that map labels keep clear of. */
@@ -279,19 +285,75 @@ type HtmlItem =
 /** A map label (country, ocean, sea, range, desert, peak): a button that opens "About this
  * place". Not in the Tab order (like the count badges); hidden or crowded labels cannot be
  * clicked. */
-function mapLabelFor(label: MapLabel, onClick: (label: MapLabel) => void): HTMLElement {
+function mapLabelFor(
+  label: MapLabel,
+  news: CountryNews | undefined,
+  onClick: (label: MapLabel) => void,
+): HTMLElement {
   const element = document.createElement('button');
   element.type = 'button';
   element.tabIndex = -1;
   element.className = `map-label kind-${label.kind}`;
-  element.textContent = label.kind === 'peak' ? `▲ ${label.text}` : label.text;
-  element.title = `${label.type}: ${label.name} · click for more`;
+  if (label.kind === 'country') dressCountry(element, label, news);
+  else {
+    element.textContent = label.kind === 'peak' ? `▲ ${label.text}` : label.text;
+    element.title = `${label.type}: ${label.name} · click for more`;
+  }
   element.addEventListener('click', (event) => {
     event.stopPropagation();
     onClick(label);
   });
   shield(element);
   return element;
+}
+
+/** The symbol of a country's main news: its category's, or its disaster's own. */
+function newsIcon(news: CountryNews): HazardIcon {
+  if (news.category !== 'natural-disasters') return CATEGORY_ICONS[news.category];
+  return HAZARD_ICONS[iconIndex({ categories: ['natural-disasters'], hazard: news.hazard })!];
+}
+
+/** "War", or the disaster's type ("Earthquake") for natural disasters of a known type. */
+function newsName(news: CountryNews): string {
+  return (
+    (news.category === 'natural-disasters' && hazardLabel({ hazard: news.hazard })) ||
+    CATEGORY_LABELS[news.category]
+  );
+}
+
+/**
+ * A country's label on the Geography map: the symbol of its main news in its severity colour,
+ * its name and "+2" for its other categories (docs/severity.md, "Geography view"); only the
+ * symbol for a country too small for its name yet. Built with DOM calls only.
+ */
+function dressCountry(element: HTMLElement, label: MapLabel, news: CountryNews | undefined): void {
+  element.classList.toggle('has-news', Boolean(news));
+  // Which symbol shows ("war", or a disaster's type such as "EQ"), for tests and styles.
+  if (news) element.dataset.symbol = newsIcon(news).code;
+  else delete element.dataset.symbol;
+  element.classList.toggle('is-symbol-only', Boolean(label.symbolOnly));
+  const name = document.createElement('span');
+  name.className = 'map-label-name';
+  name.textContent = label.text;
+  if (!news) {
+    element.replaceChildren(name);
+    element.title = `${label.type}: ${label.name} · click for more`;
+    return;
+  }
+  const icon = iconSvg(newsIcon(news), SEVERITY_STYLES[news.severity].color);
+  icon.classList.add('news-icon');
+  const others = news.categories.length - 1;
+  const parts: Node[] = [icon, name];
+  if (others > 0) {
+    const more = document.createElement('span');
+    more.className = 'map-label-more';
+    more.textContent = `+${others}`;
+    parts.push(more);
+  }
+  element.replaceChildren(...parts);
+  const also = others > 0 ? `, ${others} more categor${others === 1 ? 'y' : 'ies'}` : '';
+  element.title = `${label.name}: main news ${newsName(news)} (${SEVERITY_STYLES[news.severity].label.toLowerCase()})${also} · click for more`;
+  element.setAttribute('aria-label', element.title);
 }
 
 interface CountryFeature {
@@ -481,7 +543,7 @@ export async function createGlobeApp(
     .htmlElement((d) => {
       const item = d as HtmlItem;
       if (item.type === 'badge') return badgeFor(item.cluster, options.onSelect);
-      const element = mapLabelFor(item.label, (label) =>
+      const element = mapLabelFor(item.label, newsOf(item.label), (label) =>
         label.iso2 ? options.onCountry?.(label.iso2) : options.onPlace?.(label),
       );
       labelElements.set(item, element);
@@ -558,7 +620,7 @@ export async function createGlobeApp(
     if (geography) {
       const pov = globe.pointOfView();
       labelsCentre = pov;
-      const all = labelsFor(pov.altitude, geography, mapView);
+      const all = labelsFor(pov.altitude, geography, mapView, newsShown());
       const aspect = container.clientWidth / Math.max(1, container.clientHeight);
       const shown = labelsInView(all, pov.lat, pov.lng, pov.altitude, MAX_HTML_LABELS, aspect);
       for (const label of shown) {
@@ -614,14 +676,20 @@ export async function createGlobeApp(
       }
       const element = labelElements.get(item);
       if (!element) continue;
-      let size = labelSizes.get(element);
+      const symbolOnly = Boolean(item.label.symbolOnly);
+      const hasSymbol = element.classList.contains('has-news');
+      let size: [number, number] | undefined = symbolOnly ? SYMBOL_HALF : labelSizes.get(element);
       if (!size && element.offsetWidth > 0) {
+        // Measured at full size: a label shown as its symbol alone is narrower.
+        element.classList.remove('is-compact');
         size = [element.offsetWidth / 2 + 4, element.offsetHeight / 2 + 2];
         labelSizes.set(element, size);
       }
-      // On its point if there is room, else just below or above it (e.g. clear of a badge).
+      // On its point if there is room, else just below or above it (e.g. clear of a badge),
+      // else, for a country with news, its symbol alone on its point.
       let box: [number, number, number, number] | null = null;
       let shift = 0;
+      let compact = false;
       if (size && facing > LABEL_EDGE) {
         for (const dy of [0, size[1] * 2, -size[1] * 2]) {
           const y = screen.y + dy;
@@ -637,7 +705,21 @@ export async function createGlobeApp(
             break;
           }
         }
+        if (!box && hasSymbol && !symbolOnly) {
+          const [w, h] = SYMBOL_HALF;
+          const candidate: [number, number, number, number] = [
+            screen.x - w,
+            screen.y - h,
+            screen.x + w,
+            screen.y + h,
+          ];
+          if (inside(candidate) && free(candidate)) {
+            box = candidate;
+            compact = true;
+          }
+        }
       }
+      element.classList.toggle('is-compact', compact);
       element.classList.toggle('is-crowded', box === null);
       element.style.translate = shift ? `0 ${shift}px` : '';
       if (box) placed.push(box);
@@ -831,12 +913,19 @@ export async function createGlobeApp(
   // Countries and lakes, drawn as one object once globe.gl has built its own (./shapes.ts).
   const shapeLayer = new ShapeLayer();
   globe.scene().add(shapeLayer.mesh);
-  let shapeSeverities = new Map<string, Severity>();
+  /** Each country's news: its colour and, on the Geography map, its symbol. */
+  let countryNewsMap = new Map<string, CountryNews>();
+  const newsShown = (): Map<string, CountryNews> =>
+    mapView === 'geo' ? countryNewsMap : new Map<string, CountryNews>();
+  const newsOf = (label: MapLabel): CountryNews | undefined =>
+    label.iso2 ? newsShown().get(label.iso2) : undefined;
   let shapesWanted = 0;
   const colorOfShape = (shape: unknown): Rgba => {
     const feature = shape as ShapeFeature;
     if (feature.lake) return LAKE_COLOR;
-    return mapView === 'atlas' ? NO_COLOR : countryColor(shapeSeverities.get(feature.iso2));
+    return mapView === 'atlas'
+      ? NO_COLOR
+      : countryColor(countryNewsMap.get(feature.iso2)?.severity);
   };
   const adoptShapes = (shapes: ShapeFeature[], wanted: number): void => {
     const expected = shapes.reduce((sum, s) => sum + s.geometry.coordinates.length, 0);
@@ -925,7 +1014,7 @@ export async function createGlobeApp(
       if (!open) pauseAutoRotate();
       else applyRotation();
     },
-    setGeography(data, severities, view) {
+    setGeography(data, news, view) {
       const switched = (data === null) !== (geography === null);
       const viewChanged = view !== mapView;
       geography = data;
@@ -943,7 +1032,8 @@ export async function createGlobeApp(
           geometry: { type: 'MultiPolygon', coordinates: lake.polygons },
         }));
       }
-      shapeSeverities = severities;
+      const newsChanged = news !== countryNewsMap;
+      countryNewsMap = news;
       if (switched) {
         const shapes = data ? [...countryFeatures, ...lakeFeatures] : [];
         globe.polygonsData(shapes);
@@ -966,6 +1056,14 @@ export async function createGlobeApp(
         globe.customLayerData(view === 'news' ? clusters : []);
         globe.ringsData(ringClusters());
         labelsAt = labelLevel(globe.pointOfView().altitude);
+      }
+      if (newsChanged || viewChanged) {
+        // The labels already in the page take their new symbols; sizes are measured again.
+        for (const [item, element] of labelElements) {
+          if (item.type !== 'label' || item.label.kind !== 'country') continue;
+          dressCountry(element, item.label, newsOf(item.label));
+          labelSizes.delete(element);
+        }
         refreshHtml();
       }
     },
