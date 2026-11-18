@@ -21,7 +21,14 @@ import {
   type LineSegments,
   type WebGLRenderer,
 } from 'three';
-import { clusterDegrees, clusterEvents, clusterOf, fanOut, type Cluster } from '../clusters';
+import {
+  clusterDegrees,
+  clusterEvents,
+  clusterOf,
+  fanOut,
+  markersUnder,
+  type Cluster,
+} from '../clusters';
 import {
   angularDegrees,
   labelLevel,
@@ -120,6 +127,9 @@ const BADGE_HALF: [number, number] = [14, 10];
 const LABEL_OBSTACLES = '.brand h1, .preview-note, .topbar-actions > *, .legend, .bottom-right > *';
 /** Markers closer than this on screen (CSS px) are fanned out, so each can be tapped. */
 const FAN_SPACING_PX = 60;
+/** Markers closer than this on screen (CSS px) share a click, which lists all their events: a
+ * fingertip on touch screens, less with a mouse. */
+const SHARED_CLICK_PX = { touch: 40, mouse: 28 };
 /** The fan is worked out again each time the zoom changes by this factor. */
 const FAN_ZOOM_STEP = 1.35;
 const FLY_MS = 1400;
@@ -428,6 +438,18 @@ export async function createGlobeApp(
   }
 
   const pillarCoords = (lat: number, lng: number) => globe.getCoords(lat, lng, LIGHT_ALTITUDE);
+
+  /** What a click on a marker opens: it, or the list of every marker touching it on screen
+   * (clusters.ts, markersUnder). */
+  const underClick = (hit: Cluster): Cluster =>
+    markersUnder(
+      hit,
+      clusters,
+      (cluster) => globe.getScreenCoords(cluster.lat, cluster.lng, LIGHT_ALTITUDE),
+      window.matchMedia('(any-pointer: coarse)').matches
+        ? SHARED_CLICK_PX.touch
+        : SHARED_CLICK_PX.mouse,
+    );
   let pillars = new PillarField([], pillarCoords);
 
   globe
@@ -444,7 +466,7 @@ export async function createGlobeApp(
     })
     .customLayerLabel((d) => labelFor(d as Cluster))
     .onCustomLayerClick((d) => {
-      if (press.wasTap) options.onSelect(d as Cluster);
+      if (press.wasTap) options.onSelect(underClick(d as Cluster));
     })
     .ringAltitude(RING_ALTITUDE)
     .ringColor((d: object) => ringColor(d as Cluster))

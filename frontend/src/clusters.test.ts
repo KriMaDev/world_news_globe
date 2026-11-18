@@ -5,8 +5,8 @@ import {
   clusterEvents,
   clusterOf,
   fanOut,
-  MAX_FAN,
-  newestApart,
+  markersUnder,
+  RING_SLOTS,
   type Cluster,
 } from './clusters';
 import type { GlobeEvent, Severity } from './types';
@@ -121,43 +121,58 @@ describe('fanOut', () => {
     };
     return { id, lead: event, events: [event], lat, lng, severity: 'low' } as unknown as Cluster;
   };
+  const apart = (out: Cluster[], minimum: number): void => {
+    for (const [i, a] of out.entries()) {
+      for (const b of out.slice(i + 1)) {
+        expect(angularDistance(a.lat, a.lng, b.lat, b.lng)).toBeGreaterThanOrEqual(minimum);
+      }
+    }
+  };
 
   it('moves markers at the same place apart, each remembering its true place', () => {
     const out = fanOut([marker('a', 40, 10), marker('b', 40, 10), marker('c', 40, 10)], 1);
-    expect(out.every((c) => c.anchor?.lat === 40 && c.anchor?.lng === 10)).toBe(true);
-    for (const [i, a] of out.entries()) {
-      for (const b of out.slice(i + 1)) {
-        expect(angularDistance(a.lat, a.lng, b.lat, b.lng)).toBeGreaterThanOrEqual(0.99);
-      }
-    }
+    expect(out).toHaveLength(3);
+    expect(out.every((c) => !c.anchor || (c.anchor.lat === 40 && c.anchor.lng === 10))).toBe(true);
+    apart(out, 0.89);
   });
 
   it('leaves markers with room where they are', () => {
     const out = fanOut([marker('a', 40, 10), marker('b', 45, 10)], 1);
-    expect(out.map((c) => [c.lat, c.lng, c.anchor])).toEqual([
+    expect(out.map((c) => [c.lat, c.lng, c.anchor]).sort()).toEqual([
       [40, 10, undefined],
       [45, 10, undefined],
     ]);
   });
 
-  it('fans out up to six markers, in one ring', () => {
-    const out = fanOut(
-      Array.from({ length: MAX_FAN }, (_, i) => marker(String(i), 0, 0)),
-      1,
-    );
-    expect(new Set(out.map((c) => `${c.lat.toFixed(3)},${c.lng.toFixed(3)}`)).size).toBe(MAX_FAN);
-    for (const c of out) expect(angularDistance(0, 0, c.lat, c.lng)).toBeCloseTo(1, 3);
+  it('gives the newest the true place and rings the others around it', () => {
+    const out = fanOut([marker('old', 0, 0, false, 0), marker('new', 0, 0, false, 5)], 1);
+    const newest = out.find((c) => c.id === 'new')!;
+    expect([newest.lat, newest.lng, newest.anchor]).toEqual([0, 0, undefined]);
+    expect(out.find((c) => c.id === 'old')!.anchor).toEqual({ lat: 0, lng: 0 });
   });
 
-  it('keeps the newest of a bigger pile as markers of their own, and groups the rest', () => {
-    // n0 is the oldest, n8 the newest.
-    const pile = Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0, false, i));
-    const out = fanOut(pile, 1);
-    expect(out).toHaveLength(MAX_FAN);
+  it('keeps the newest stories apart and groups the oldest when room runs out', () => {
+    // Nine at one place: the place and its ring hold seven; n0 is the oldest.
+    const out = fanOut(
+      Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0, false, i)),
+      1,
+    );
+    expect(out).toHaveLength(1 + RING_SLOTS);
     const singles = out.filter((c) => !c.id.startsWith('group:')).map((c) => c.id);
-    expect(singles.sort()).toEqual(['n4', 'n5', 'n6', 'n7', 'n8']);
+    expect(singles.sort()).toEqual(['n3', 'n4', 'n5', 'n6', 'n7', 'n8']);
     const group = out.find((c) => c.id.startsWith('group:'))!;
-    expect(group.events.map((e) => e.id).sort()).toEqual(['n0', 'n1', 'n2', 'n3']);
+    expect(group.events.map((e) => e.id).sort()).toEqual(['n0', 'n1', 'n2']);
+    apart(out, 0.89);
+  });
+
+  it('never leaves a marker on top of a neighbour', () => {
+    // Three at one place and one just beside it: its ring slots must avoid the neighbour.
+    const out = fanOut(
+      [marker('a', 0, 0), marker('b', 0, 0), marker('c', 0, 0), marker('d', 0, 1.05)],
+      1,
+    );
+    expect(out).toHaveLength(4);
+    apart(out, 0.89);
   });
 
   it('keeps disaster symbols and pillars in separate groups', () => {
@@ -166,24 +181,45 @@ describe('fanOut', () => {
       marker('d0', 0, 0, true, -2),
       marker('d1', 0, 0, true, -1),
     ];
-    const out = newestApart(pile);
-    expect(out).toHaveLength(MAX_FAN);
-    expect(out.filter((c) => !c.id.startsWith('group:')).map((c) => c.id)).toEqual([
-      'n8',
-      'n7',
-      'n6',
-      'n5',
-    ]);
-    expect(
-      out
-        .filter((c) => c.id.startsWith('group:'))
-        .map((c) => c.events.length)
-        .sort(),
-    ).toEqual([2, 5]);
+    const out = fanOut(pile, 1);
+    for (const group of out.filter((c) => c.id.startsWith('group:'))) {
+      const kinds = new Set(group.events.map((e) => e.categories[0]));
+      expect(kinds.size).toBe(1);
+    }
+    expect(out.flatMap((c) => c.events)).toHaveLength(pile.length);
   });
 
   it('does nothing with a spacing of 0', () => {
     const clusters = [marker('a', 40, 10), marker('b', 40, 10)];
     expect(fanOut(clusters, 0)).toBe(clusters);
+  });
+});
+
+describe('markersUnder', () => {
+  const at = (id: string, x: number, published: string) =>
+    ({
+      id,
+      lead: { id, severity: 'low', published },
+      events: [{ id, severity: 'low', published }],
+      lat: 10,
+      lng: x / 100,
+      severity: 'low',
+      screen: { x, y: 100 },
+    }) as unknown as Cluster & { screen: { x: number; y: number } };
+  const screenOf = (c: Cluster) => (c as Cluster & { screen: { x: number; y: number } }).screen;
+
+  it('lists every event of markers touching the clicked one, newest first on ties', () => {
+    const a = at('a', 100, '2026-11-08T10:00:00Z');
+    const b = at('b', 115, '2026-11-08T12:00:00Z');
+    const far = at('far', 300, '2026-11-08T11:00:00Z');
+    const out = markersUnder(a, [a, b, far], screenOf, 28);
+    expect(out.id).toBe('here:b');
+    expect(out.events.map((e) => e.id)).toEqual(['b', 'a']);
+  });
+
+  it('opens a lone marker as itself', () => {
+    const a = at('a', 100, '2026-11-08T10:00:00Z');
+    const far = at('far', 300, '2026-11-08T11:00:00Z');
+    expect(markersUnder(a, [a, far], screenOf, 28)).toBe(a);
   });
 });

@@ -7,7 +7,7 @@ Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the midd
 ## 1.12.0 · 2026-11-18
 
 - Markers stay apart and clickable when zoomed in. They keep about the same size on screen at every zoom, instead of growing about five times. Pillars get shorter close up, so they no longer lean over their neighbours. Rings shrink with the zoom.
-- Markers too close together spread into one ring of up to six, each on its own side, with short lines that never cross. In a bigger pile the newest stories keep their own pillars and only the older ones form a group, which opens as a list.
+- Markers close together are laid out like pins on a map, newest first: each at its place or in a free slot beside it, never on top of another. Where room runs out, only the oldest stories form a group, which opens as a list. A click where markers still touch lists every event there.
 - The zoom always goes all the way in. It used to stop until NASA's close-up images had loaded.
 - The legend can be folded on wider screens too, with an arrow in its top right corner.
 

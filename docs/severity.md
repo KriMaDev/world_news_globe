@@ -85,7 +85,12 @@ How many outlets cover a story is shown as **coverage**, separately. It never ra
 
 ### Markers that stand too close
 
-Zoomed right in, where no grouping happens, markers less than about 60 screen pixels apart (or at the very same place) move apart in one ring of up to six, so each can be tapped. Each takes the slot on its own side, and a thin line joins it to its true place, so lines stay short and never cross. A pile of more than six keeps its **newest** stories as markers of their own, looking like any other, and groups only the older ones (one group per kind, see below), so the ring still holds six; a group opens as a list and splits up as the zoom comes closer (18 Nov 2026: bigger piles fanned over several rings had spread into a web of crossing lines; the owner: the newest must never be hidden in a group).
+Zoomed right in, where no grouping happens, markers are laid out like pins on a map, **newest first**, so that none is closer than about 60 screen pixels to another and each can be tapped:
+
+1. a story stands at its true place if that is free, else in the nearest free slot of a ring of six around it, with a thin line back to its place;
+2. a story that finds no free slot joins the nearest group of its kind nearby; without one, the oldest nearby story of its kind becomes a group holding both, in that story's slot.
+
+So the newest stories stand alone, and groups form only where room runs out, typically where many stories share one city's coordinates. A group opens as a list. A click where markers still touch (in a tilted view) lists every event under it, within about a fingertip (40 px on touch screens, 28 px with a mouse). History, 18 Nov 2026: rings of more than six had spread into a web of crossing lines; rings landed on their neighbours, so one of two touching markers could not be clicked; the owner: the newest must never be hidden in a group.
 
 Markers keep about the same size on screen at every zoom, and below altitude 1 pillars also get shorter (down to 30 % at the closest zoom), with click areas 1.5 times the glowing spot. Before 18 Nov 2026 they grew about 5 times on screen when zoomed in, and tall pillars leaned over their neighbours. The high and critical rings shrink with the zoom too.
 

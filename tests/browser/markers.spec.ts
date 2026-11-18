@@ -81,13 +81,14 @@ test('six stories in one spot can each be reached at the closest zoom', async ({
   test.skip(isMobile, 'Hovering needs a mouse; phones tap the same markers');
   test.setTimeout(120_000);
   await zoomIntoTestland(page, pile());
-  await expect(page.locator('#globe')).toHaveAttribute('data-fanned', '6');
+  // The newest keeps its true place; the other five move aside.
+  await expect(page.locator('#globe')).toHaveAttribute('data-fanned', '5');
   expect([...(await reachable(page))].sort()).toEqual(
     SEVERITIES.map((_, i) => `Made-up headline number ${i}`),
   );
 });
 
-test('in a pile too big to spread out, the newest stories keep their own pillars', async ({
+test('where room runs out, the newest stories keep their own pillars', async ({
   page,
   isMobile,
 }) => {
@@ -105,8 +106,52 @@ test('in a pile too big to spread out, the newest stories keep their own pillars
   );
   await zoomIntoTestland(page, events);
   const reached = await reachable(page);
-  for (const newest of [8, 7, 6, 5, 4])
+  for (const newest of [8, 7, 6, 5, 4, 3])
     expect(reached).toContain(`Made-up headline number ${newest}`);
-  // The four oldest (with the critical one) are one group with a count.
-  await expect(page.locator('.cluster-badge', { hasText: '4' })).toHaveCount(1);
+  // The place and its ring hold seven: the three oldest (with the critical one) share a group.
+  await expect(page.locator('.cluster-badge', { hasText: '3' })).toHaveCount(1);
+});
+
+test('a click on a marker with no other near it opens its own card', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Finding the marker needs a mouse; phones get a wider reach');
+  test.setTimeout(120_000);
+  // Two stories about 1.3° apart: separate markers about 140 px apart at country level
+  // (altitude 1). Touching markers open a list instead (unit tests: markersUnder).
+  const events = [
+    syntheticEvent('near-a', 19.6, -72.2, { ...TESTLAND, title: 'Made-up headline number 1' }),
+    syntheticEvent('near-b', 19.6, -70.9, { ...TESTLAND, title: 'Made-up headline number 2' }),
+  ];
+  await openGlobe(page, '/', { events });
+  if ((await page.locator('#rotate-toggle').getAttribute('aria-pressed')) === 'true') {
+    await page.locator('#rotate-toggle').click();
+  }
+  await page.locator('#filter-toggle').click();
+  for (const value of ['Americas', 'Caribbean', 'TL']) {
+    await page.locator('[data-filter=place] .place-select').selectOption(value);
+  }
+  await page.locator('#filter-toggle').click();
+  await settledView(page);
+  // Find a marker by its hover label, then click it there.
+  const size = page.viewportSize()!;
+  let spot: { x: number; y: number } | null = null;
+  search: for (let gy = -6; gy <= 6; gy += 1) {
+    for (let gx = -8; gx <= 8; gx += 1) {
+      const point = { x: size.width / 2 + gx * 8, y: size.height / 2 + gy * 8 };
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(120);
+      const shown = await page.evaluate(() => {
+        const tip = document.querySelector('.float-tooltip-kap');
+        return !!tip && getComputedStyle(tip).display !== 'none' && !!tip.textContent;
+      });
+      if (shown) {
+        spot = point;
+        break search;
+      }
+    }
+  }
+  expect(spot).not.toBeNull();
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await expect(page.locator('#event-card-title')).toHaveText(/^Made-up headline number [12]$/);
 });
