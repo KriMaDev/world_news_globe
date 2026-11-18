@@ -48,20 +48,25 @@ def test_colors_match_docs_and_frontend() -> None:
 
 
 @pytest.mark.parametrize(
-    ("title", "level"),
+    ("title", "summary", "level"),
     [
-        ("Ebola disease caused by a test virus - Testland", "critical"),
-        ("Marburg virus disease- Testland", "critical"),
-        ("Middle East respiratory syndrome coronavirus - Testland", "high"),
-        ("Avian Influenza A(H9N2) - Testland", "high"),
-        ("Pneumonia of undetermined etiology - Testland", "high"),
-        ("Chikungunya virus disease - Testland", "moderate"),
-        ("Measles - Testland", "moderate"),
+        ("Ebola disease caused by a test virus - Testland", "", "critical"),
+        ("Marburg virus disease- Testland", "", "critical"),
+        ("Middle East respiratory syndrome coronavirus - Testland", "", "critical"),
+        ("Avian Influenza A(H9N2) - Testland", "", "critical"),
+        ("Pneumonia of undetermined etiology - Testland", "", "critical"),
+        ("Chikungunya virus disease - Testland", "", "moderate"),
+        ("Measles - Testland", "A total of 120 cases, including 18 deaths, were reported.", "high"),
+        (
+            "Measles - Testland",
+            "A total of 40 cases, including 3 deaths, were reported.",
+            "moderate",
+        ),
         # "mers" only as a word start: not inside "Summers".
-        ("Summers test fever - Testland", "moderate"),
+        ("Summers test fever - Testland", "", "moderate"),
     ],
 )
-def test_who_severity(title: str, level: str) -> None:
-    rated, reason = who_severity(title)
+def test_who_severity(title: str, summary: str, level: str) -> None:
+    rated, reason = who_severity(title, summary)
     assert rated.label == level
     assert "WHO" in reason

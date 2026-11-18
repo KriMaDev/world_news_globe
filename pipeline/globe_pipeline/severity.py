@@ -198,39 +198,44 @@ def news_severity(headline: str) -> Rated:
 
 # ---------- WHO Disease Outbreak News ----------
 
-#: Diseases by level, matched as words in WHO's own report title. WHO only publishes notable
-#: outbreaks, so a report is never "low": anything not listed is moderate.
-WHO_LEVELS: tuple[tuple[Severity, tuple[str, ...]], ...] = (
-    (Severity.CRITICAL, ("ebola", "marburg", "smallpox", "plague")),
-    (
-        Severity.HIGH,
-        (
-            "nipah",
-            "middle east respiratory syndrome",
-            "mers",
-            "avian influenza",
-            "novel influenza",
-            "influenza a(h",
-            "cholera",
-            "yellow fever",
-            "mpox",
-            "poliomyelitis",
-            "polio",
-            "diphtheria",
-            "lassa",
-            "crimean-congo",
-            "undetermined",
-        ),
-    ),
+#: Diseases that make a WHO report critical, matched as a word start in WHO's own title
+#: (the owner's rule, 18 Nov 2026: the most dangerous outbreaks are one level).
+WHO_CRITICAL = (
+    "ebola",
+    "marburg",
+    "smallpox",
+    "plague",
+    "nipah",
+    "middle east respiratory syndrome",
+    "mers",
+    "avian influenza",
+    "novel influenza",
+    "influenza a(h",
+    "cholera",
+    "yellow fever",
+    "mpox",
+    "poliomyelitis",
+    "polio",
+    "diphtheria",
+    "lassa",
+    "crimean-congo",
+    "undetermined",
 )
+#: Deaths in WHO's summary that make any other report high (as for news headlines).
+WHO_HIGH_DEATHS = 10
 
 
-def who_severity(title: str) -> Rated:
-    """A WHO outbreak report: Ebola, Marburg, smallpox or plague critical; the diseases in
-    WHO_LEVELS high; every other report moderate."""
+def who_severity(title: str, summary: str = "") -> Rated:
+    """A WHO outbreak report: a disease in WHO_CRITICAL in the title is critical. Any other
+    report is high when WHO's summary counts 10 or more deaths, else moderate (WHO only
+    publishes notable outbreaks, so never low). The summary is read for the number only."""
     lowered = title.lower()
-    for level, diseases in WHO_LEVELS:
-        for disease in diseases:
-            if re.search(r"(?<![a-z])" + re.escape(disease), lowered):
-                return level, f'WHO outbreak report on "{disease}" ({level.label} by our list)'
+    for disease in WHO_CRITICAL:
+        if re.search(r"(?<![a-z])" + re.escape(disease), lowered):
+            return Severity.CRITICAL, f'WHO outbreak report on "{disease}" (critical by our list)'
+    deaths = casualties_in(summary)
+    if deaths is not None and deaths >= WHO_HIGH_DEATHS:
+        return Severity.HIGH, f"WHO report counts {deaths:,} deaths"
+    if deaths:
+        return Severity.MODERATE, f"WHO report counts {deaths:,} deaths (under 10)"
     return Severity.MODERATE, "WHO outbreak report (every report is at least moderate)"

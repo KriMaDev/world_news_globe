@@ -1,6 +1,7 @@
 """WHO Disease Outbreak News: the World Health Organization's official reports on outbreaks.
 
-Only each report's title, date and link are used: no text, no logo. WHO content is under
+Only each report's title, date and link are shown: no text, no logo. Its summary is read
+for one number, the deaths it counts (severity), and is never stored or shown. WHO content is under
 CC BY-NC-SA 3.0 IGO (non-commercial use with credit; docs/sources.md).
 
 Rules (docs/sources.md, "WHO Disease Outbreak News"):
@@ -37,7 +38,7 @@ SOURCE = "World Health Organization"
 CREDIT = "World Health Organization (Disease Outbreak News)"
 URL = (
     "https://www.who.int/api/news/diseaseoutbreaknews"
-    "?$top=40&$orderby=PublicationDate%20desc&$select=Title,PublicationDate,UrlName"
+    "?$top=40&$orderby=PublicationDate%20desc&$select=Title,PublicationDate,UrlName,Summary"
 )
 REPORT_URL = "https://www.who.int/emergencies/disease-outbreak-news/item/{slug}"
 #: How long a report stays current after WHO publishes it.
@@ -126,7 +127,8 @@ def parse(
             continue
         key = _report_key(title)
         if key not in newest or published > newest[key]["published"]:
-            newest[key] = {"title": title, "slug": slug, "published": published}
+            summary = clean_text(report.get("Summary"))
+            newest[key] = {"title": title, "slug": slug, "published": published, "summary": summary}
 
     events: list[Event] = []
     unplaced = 0
@@ -136,7 +138,7 @@ def parse(
         if not codes:
             unplaced += 1
             continue
-        severity, reason = who_severity(title)
+        severity, reason = who_severity(title, report["summary"])
         for iso2 in codes:
             lat, lng = points[iso2]
             geo = gazetteer.geo_for_country(iso2, "country")

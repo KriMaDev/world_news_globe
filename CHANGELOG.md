@@ -6,7 +6,7 @@ Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the midd
 
 ## 1.10.0 · 2026-11-18
 
-- WHO outbreak reports: the World Health Organization's Disease Outbreak News, in Health & outbreaks, shown in every country a report names for 14 days after publication. Severity follows the disease (rule on the About page).
+- WHO outbreak reports: the World Health Organization's Disease Outbreak News, in Health & outbreaks, shown in every country a report names for 14 days after publication. The most dangerous diseases are critical; other reports are high with 10 or more deaths, otherwise moderate (rule on the About page).
 - The timeline reaches back 14 days, with a 14 days choice. Earthquakes and disaster alerts are kept for the 14 days too.
 - Places near a border stay in their own country: news from the West Bank no longer lands in Israel. Cards say a place found by software can land across a border, and About says borders and names take no side.
 - Categories reviewed for 2026: new words for air attacks, elections and local politics, labour strikes, outages and cyber attacks, this year's outbreaks, and climate.

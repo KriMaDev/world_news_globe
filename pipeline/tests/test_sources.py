@@ -385,9 +385,9 @@ def test_only_web_addresses_count_as_an_outlets_article() -> None:
 WHO_POINTS = {"BG": (42.7, 25.5), "JP": (36.0, 138.0), "YE": (15.6, 47.6), "RU": (61.0, 96.0)}
 
 
-def who_report(title: str, slug: str, now, days_ago: float) -> dict:
+def who_report(title: str, slug: str, now, days_ago: float, summary: str = "") -> dict:
     published = (now - timedelta(days=days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return {"Title": title, "PublicationDate": published, "UrlName": slug}
+    return {"Title": title, "PublicationDate": published, "UrlName": slug, "Summary": summary}
 
 
 def test_who_titles_name_their_countries(gazetteer) -> None:
@@ -435,3 +435,12 @@ def test_who_label_points_cover_the_countries() -> None:
     assert len(points) > 200
     lat, lng = points["CD"]
     assert -14 < lat < 6 and 12 < lng < 32
+
+
+def test_who_deaths_in_the_summary_make_a_report_high(gazetteer, now) -> None:
+    summary = "<p>As of 1 November, 90 cases, including 25 deaths, were reported.</p>"
+    report = who_report("Measles test - Bulgaria", "2026-DON9", now, 1, summary)
+    events, _ = who.parse([report], gazetteer, now, WHO_POINTS)
+    assert events[0].severity.label == "high"
+    assert events[0].severity_reason == "WHO report counts 25 deaths"
+    assert "summary" not in events[0].to_json() and events[0].snippet == ""

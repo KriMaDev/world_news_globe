@@ -28,10 +28,10 @@ Green → low, Orange → high, Red → critical. GDACS alerts are automated est
 
 ### WHO outbreak reports
 
-The disease named in WHO's own title decides (`who_severity`, matched as a word start):
+The owner's rule (18 Nov 2026), `who_severity`:
 
-- **Critical:** Ebola, Marburg, smallpox, plague.
-- **High:** Nipah, MERS (Middle East respiratory syndrome), avian or novel influenza in humans (`influenza A(H…`), cholera, yellow fever, mpox, polio, diphtheria, Lassa fever, Crimean-Congo haemorrhagic fever, and illness of undetermined cause.
+- **Critical:** the title names one of these (matched as a word start): Ebola, Marburg, smallpox, plague, Nipah, MERS (Middle East respiratory syndrome), avian or novel influenza in humans (`influenza A(H…`), cholera, yellow fever, mpox, polio, diphtheria, Lassa fever, Crimean-Congo haemorrhagic fever, illness of undetermined cause.
+- **High:** any other report whose summary counts 10 or more deaths (the same patterns and threshold as news headlines; the summary is read for this number only and never shown).
 - **Moderate:** every other report. WHO only publishes notable outbreaks, so a report is never low.
 
 ### The same earthquake from USGS and GDACS
