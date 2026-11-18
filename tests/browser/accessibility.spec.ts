@@ -56,7 +56,7 @@ test.describe('axe finds nothing serious', () => {
   test('the open legend', async ({ page }) => {
     await openWorld(page);
     const toggle = page.locator('.legend-toggle');
-    if (await toggle.isVisible()) await toggle.click(); // Wider screens always show it all.
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
     await expect(page.locator('.legend-more')).toBeVisible();
     await expectNoSeriousProblems(page);
   });

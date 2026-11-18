@@ -126,24 +126,32 @@ function symbolList(): HTMLDetailsElement {
 
 const OPEN_KEY = 'wng-legend-open';
 
-function wasLeftOpen(): boolean {
+/** The screens that get the phone layout (the same query as in style.css). */
+const PHONE_LAYOUT = '(max-width: 640px), (max-height: 520px), (any-pointer: coarse)';
+
+/** Whether the legend starts open: as the visitor left it ("1" open, "0" closed), else open
+ * on wider screens and closed to one row on phones. */
+function startsOpen(): boolean {
+  let stored: string | null = null;
   try {
-    return window.localStorage.getItem(OPEN_KEY) === '1';
+    stored = window.localStorage.getItem(OPEN_KEY);
   } catch {
-    return false;
+    // Storage may be blocked: use the default.
   }
+  if (stored === '1' || stored === '0') return stored === '1';
+  return !window.matchMedia(PHONE_LAYOUT).matches;
 }
 
 function rememberOpen(open: boolean): void {
   try {
-    if (open) window.localStorage.setItem(OPEN_KEY, '1');
-    else window.localStorage.removeItem(OPEN_KEY);
+    window.localStorage.setItem(OPEN_KEY, open ? '1' : '0');
   } catch {
     // Storage may be blocked; the button still works for this visit.
   }
 }
 
-/** The arrow that opens or closes the legend on phones (hidden by CSS on wider screens). */
+/** The arrow that opens or closes the legend: on phones at the end of its one row, on wider
+ * screens in its top right corner, folding it to the four severity levels (style.css). */
 function openButton(root: HTMLElement): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -155,7 +163,7 @@ function openButton(root: HTMLElement): HTMLButtonElement {
     button.setAttribute('aria-expanded', String(open));
     button.setAttribute('aria-label', open ? 'Show less of the legend' : 'Show the whole legend');
   };
-  apply(wasLeftOpen());
+  apply(startsOpen());
   button.addEventListener('click', () => {
     const open = root.classList.contains('collapsed');
     apply(open);

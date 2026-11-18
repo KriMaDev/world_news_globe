@@ -837,6 +837,66 @@ html.app body {
   display: none;
 }
 
+/* Wider screens: an arrow in the legend's top right corner folds it to the severity levels
+   (owner, 18 Nov 2026). Phones have their own fold, in the block further down. */
+@media (min-width: 641px) and (min-height: 521px) and (not (any-pointer: coarse)) {
+  .legend-head {
+    position: relative;
+  }
+
+  .legend-toggle {
+    position: absolute;
+    top: -0.45rem;
+    right: -0.55rem;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .legend-toggle:hover,
+  .legend-toggle:focus-visible {
+    color: var(--fg);
+  }
+
+  .legend-arrow {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 7px solid currentColor;
+  }
+
+  .legend-toggle[aria-expanded='true'] .legend-arrow {
+    transform: rotate(180deg);
+  }
+
+  .legend.collapsed {
+    width: auto;
+  }
+
+  .legend.collapsed .legend-more,
+  .legend.collapsed .legend-head .legend-note,
+  .legend.collapsed .legend-how {
+    display: none;
+  }
+
+  .legend.collapsed .legend-title {
+    padding-right: 1.5rem;
+  }
+
+  .legend.collapsed .legend-list {
+    margin-bottom: 0;
+  }
+
+  .legend.collapsed .legend-list li {
+    grid-template-columns: 22px auto;
+  }
+}
+
 .bottom {
   position: fixed;
   left: 0;

@@ -62,7 +62,7 @@ test('the legend opens, closes and is remembered', async ({ page }) => {
   await page.reload();
   await expect(page.locator('.legend-toggle')).toHaveAttribute('aria-expanded', 'true');
   await page.locator('.legend-toggle').click();
-  expect(await page.evaluate(() => localStorage.getItem('wng-legend-open'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('wng-legend-open'))).toBe('0');
 });
 
 test('Info opens the links and closes again', async ({ page }) => {
