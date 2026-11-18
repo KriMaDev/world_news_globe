@@ -34,16 +34,18 @@ Cloudflare's free plan includes Cron Triggers (a few per account). A new or chan
 
 Each run:
 
-1. builds the gazetteer once a month (cached);
-2. runs the pipeline against the data already live;
-3. builds the site, in a job with no secrets;
-4. a separate job, which alone can read the Cloudflare token, uploads that build as a new version and makes it live.
+1. fetches Cloudflare Radar's outage list, in a job that alone holds the Radar token and runs nothing but `curl`;
+2. builds the gazetteer once a month (cached);
+3. runs the pipeline against the data already live (and the saved Radar list);
+4. builds the site, in a job with no secrets;
+5. a separate job, which alone can read the Cloudflare deploy token, uploads that build as a new version and makes it live.
 
 It needs, under GitHub → the repository → Settings → Environments → **production** (deployment branches: `main` only):
 
 - **Secrets**:
   - `CLOUDFLARE_API_TOKEN`: Cloudflare dashboard → Manage Account → API Tokens → an account-owned token limited to the one Worker `world-news-globe`, role **Editor**, with an expiry date (a year at most; write the date in your private notes). It can't touch krimadev.com, Star Teller, the timer, routes or DNS: those are changed by hand from this PC.
   - `CLOUDFLARE_ACCOUNT_ID`: shown on the Workers & Pages overview page.
+- **Repository secret** (Settings → Secrets and variables → Actions → Repository secrets) `CLOUDFLARE_RADAR_TOKEN`: Cloudflare dashboard → My Profile → API Tokens → Create Token → Custom token, permission **Account › Radar › Read** only, expiry one year (write the date in your private notes). It can only read Radar's public data. Without it, or once it expires, the run still deploys and the site names Cloudflare Radar as a failed feed; renew it the same way. For local runs put the same token in the git-ignored `.env` (`CLOUDFLARE_RADAR_TOKEN=...`) and run `pipeline/.venv/Scripts/python pipeline/tools/fetch_radar.py`.
 - **Variable** (Settings → Secrets and variables → Actions) `LIVE` = `true`: the switch. Without it the workflow does nothing, so nothing goes public by accident. Set it to `false` to pause the updates (the site stays as last deployed).
 
 GitHub pauses _scheduled_ workflows in a repository with no activity for 60 days; that only stops the backup, not the Cloudflare timer. The readout's "DATA" time shows when the data was last updated.

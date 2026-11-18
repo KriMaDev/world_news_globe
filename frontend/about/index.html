@@ -122,7 +122,7 @@
           <li>
             <strong>Collect.</strong> Every 30 minutes an automatic run fetches earthquakes from
             USGS, disaster alerts from GDACS, outbreak reports from the World Health Organization,
-            and, through the GDELT Project, what the
+            internet outages from Cloudflare Radar, and, through the GDELT Project, what the
             <a href="/sources/#outlets">listed outlets</a> have published.
           </li>
           <li>
@@ -202,6 +202,12 @@
             fever, Crimean-Congo fever or illness of unknown cause is critical. Any other report is
             high when WHO counts 10 or more deaths, and moderate otherwise: never low, because WHO
             only reports notable outbreaks. A report stays on the globe for 14 days.
+          </li>
+          <li>
+            <strong>Internet outages (Cloudflare Radar).</strong> A nationwide outage that Radar
+            marks as ordered by a government (an internet shutdown) is critical, any other
+            nationwide outage high, a regional one moderate, and one network or platform low. An
+            outage stays on the globe while it lasts.
           </li>
           <li>
             <strong>News.</strong> Only the headline is read, because it is what you see and the

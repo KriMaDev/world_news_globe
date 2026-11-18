@@ -74,6 +74,11 @@ function notes(event: GlobeEvent): string[] {
       'Official report from the World Health Organization, shown for 14 days after publication.',
     );
   }
+  if (event.feed === 'radar') {
+    lines.push(
+      "Outage seen by Cloudflare Radar in its network traffic. The cause is Radar's assessment.",
+    );
+  }
   if (event.kind === 'sample') lines.push('No source: this is sample data for the preview.');
   return lines;
 }

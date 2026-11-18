@@ -4,7 +4,7 @@ Every source is checked before it is added: it must be free, and its terms must 
 
 **Labels shown in the app**
 
-- **Data feed:** structured data from a scientific or official body (USGS, GDACS, WHO).
+- **Data feed:** structured data from a scientific or official body, or measured network data (USGS, GDACS, WHO, Cloudflare Radar).
 - **News report:** an article by a news outlet. We show its headline as published, the outlet, the time and a link. No snippet, until an outlet's terms or written permission allow one.
 - **Machine-coded location:** the place was worked out by GDELT's algorithms from the article text, not given by the outlet.
 - **State-affiliated:** see the ownership rule below. Shown on every item from that outlet and on the Sources page.
@@ -16,6 +16,7 @@ Every source is checked before it is added: it must be free, and its terms must 
 | [USGS Earthquake Hazards](https://earthquake.usgs.gov/earthquakes/feed/)           | Earthquakes M4.5+ and "significant" ones, past week; earlier ones kept for the 14-day timeline                                                                   | USGS-produced data is U.S. public domain; credit is requested ([policy](https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits), 2026-11-07)                                                                                                                                                                                                                | "U.S. Geological Survey"                   | 30 min  | Live (M3)     |
 | [GDACS](https://www.gdacs.org/)                                                    | Disaster alerts: Orange and Red of every kind; Green for earthquakes, cyclones, floods and volcanoes (Green wildfires and droughts left out: dozens at any time) | CC BY 4.0 under the European Commission's reuse policy, which GDACS's copyright notice points to ([EC legal notice](https://commission.europa.eu/legal-notice_en), 2026-11-07). Alerts are automated and indicative, not a substitute for official alerts ([terms](https://www.gdacs.org/About/termofuse.aspx)). Changes indicated: our severity is derived from the GDACS alert level | "GDACS (European Commission JRC, UN OCHA)" | 30 min  | Live (M3)     |
 | [WHO Disease Outbreak News](https://www.who.int/emergencies/disease-outbreak-news) | Official outbreak reports, in Health & outbreaks: title, date and link only; current for 14 days (rules below)                                                   | WHO content is CC BY-NC-SA 3.0 IGO: non-commercial use with credit, no endorsement implied, no logo ([copyright](https://www.who.int/about/policies/publishing/copyright), checked 2026-11-18). The site is free and non-commercial. API: `www.who.int/api/news/diseaseoutbreaknews`, public, no key                                                                                   | "World Health Organization"                | 30 min  | Live (1.10.0) |
+| [Cloudflare Radar Outage Center](https://radar.cloudflare.com/outage-center)       | Internet outages by country (cause, type, scope, start, end, description), in Cyber & outages                                                                    | Radar's API data is CC BY-NC 4.0: non-commercial use with credit ([Radar docs](https://developers.cloudflare.com/radar/), checked 2026-11-18). The site is free and non-commercial. API `radar/annotations/outages`, needs a read-only token (Account > Radar > Read)                                                                                                                  | "Cloudflare Radar"                         | 30 min  | Live (1.11.0) |
 | [NASA EONET v3](https://eonet.gsfc.nasa.gov/)                                      | Natural events (wildfires, storms, volcanoes)                                                                                                                    | Open API, no key; "for visualization and general information purposes" (2026-11-07)                                                                                                                                                                                                                                                                                                    | "NASA EONET"                               | 60 min  | Planned (M7)  |
 
 ### WHO Disease Outbreak News (since 1.10.0)
@@ -24,6 +25,14 @@ Every source is checked before it is added: it must be free, and its terms must 
 - Current: 14 days after WHO publishes a report (the event's `until`), so it shows in every time window it overlaps. A newer report with the same title replaces the older one.
 - Place: every country the title names after the disease (the part after the first dash or comma), matched to GeoNames country names plus WHO's formal names (`ALIASES` in `sources/who.py`), each at country level on Natural Earth's label point. A title naming only a WHO region, "Global" or "Multi-country" is not placed; `feeds.json` counts it as `not_placed`.
 - Severity: by disease, `who_severity` in `severity.py` and `docs/severity.md`.
+
+### Cloudflare Radar (since 1.11.0)
+
+- Read: Radar's outage annotations for the last 14 days (`dateRange=14d`, up to 200). The token is read-only and lives only in the `radar` job of `update.yml`, which runs nothing but `curl`; the pipeline reads the saved answer (`sources/radar.py`). Locally: `pipeline/tools/fetch_radar.py` with the token in `.env`.
+- Shown: a title built from Radar's fields ("Internet outage in Cuba: power outage (nationwide)"), Radar's description as the snippet, the scope next to the country, credit and a link to the Outage Center.
+- Place: one event per country in `locations` (or, for single networks, the networks' countries), at country level on Natural Earth's label point.
+- Current: from `startDate` to `endDate`, or for as long as Radar lists it as ongoing.
+- Severity: `radar_severity` in `severity.py` and `docs/severity.md`.
 
 ## News
 

@@ -2,7 +2,7 @@
 
 > A map of current world events, built automatically from public data feeds and news headlines. It is not a news outlet: it writes no articles and publishes no opinions. Each item names who reported it and links to the original.
 
-World News Globe updates every 30 minutes. Earthquakes come from USGS, disaster alerts from GDACS, outbreak reports from the World Health Organization (WHO), and news headlines, through the GDELT Project, from a published list of 32 outlets across every region. State-affiliated outlets are included and labelled.
+World News Globe updates every 30 minutes. Earthquakes come from USGS, disaster alerts from GDACS, outbreak reports from the World Health Organization (WHO), internet outages from Cloudflare Radar, and news headlines, through the GDELT Project, from a published list of 32 outlets across every region. State-affiliated outlets are included and labelled.
 
 ## How to cite
 

@@ -15,6 +15,7 @@ export const FEED_NAMES: Record<string, string> = {
   usgs: 'USGS',
   gdacs: 'GDACS',
   who: 'WHO',
+  radar: 'Cloudflare Radar',
   gdelt: 'GDELT',
 };
 

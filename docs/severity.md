@@ -34,6 +34,15 @@ The owner's rule (18 Nov 2026), `who_severity`:
 - **High:** any other report whose summary counts 10 or more deaths (the same patterns and threshold as news headlines; the summary is read for this number only and never shown).
 - **Moderate:** every other report. WHO only publishes notable outbreaks, so a report is never low.
 
+### Internet outages (Cloudflare Radar)
+
+By the outage's type and cause as Radar gives them (`radar_severity`):
+
+- **Critical:** a nationwide outage whose cause is `GOVERNMENT_DIRECTED` (an internet shutdown).
+- **High:** any other nationwide outage.
+- **Moderate:** a regional outage.
+- **Low:** one network or platform (also any type Radar adds later, until it is listed here).
+
 ### The same earthquake from USGS and GDACS
 
 They become one event listing both sources (see `pipeline/globe_pipeline/cluster.py`). It takes the higher of the two levels, with that rule's reason.
