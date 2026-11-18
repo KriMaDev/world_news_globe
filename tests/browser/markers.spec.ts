@@ -50,7 +50,8 @@ async function zoomIntoTestland(page: Page, events: ReturnType<typeof pile>): Pr
   }
   // The tests block NASA's tiles: the zoom still goes all the way in (it used to stop at 0.5
   // until a tile had loaded). Wait for the camera to arrive and stop before hovering.
-  await expect.poll(() => altitude(page), { timeout: 20_000 }).toBeLessThan(0.2);
+  // The readout rounds to one decimal: the closest zoom, 0.15, can read 0.2.
+  await expect.poll(() => altitude(page), { timeout: 20_000 }).toBeLessThan(0.3);
   await settledView(page);
 }
 
