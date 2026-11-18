@@ -160,7 +160,8 @@ test('zoomed in, news at the same place fans out and each can be opened', async 
     await page.waitForTimeout(700);
   }
   expect(await altitude(page)).toBeLessThan(0.9);
-  await expect(page.locator('#globe')).toHaveAttribute('data-fanned', '3');
+  // The newest keeps its true place; the other two move aside.
+  await expect(page.locator('#globe')).toHaveAttribute('data-fanned', '2');
   await openEvent(page, 'one'); // Settles the camera where every later open will leave it.
   await page.keyboard.press('Escape');
   await page.waitForTimeout(1800);
