@@ -35,6 +35,7 @@ CATEGORY_LABELS = {
     "natural-disasters": "Natural disasters",
     "economic": "Economic",
     "technology": "Technology advancements",
+    "cyber": "Cyber & outages",
     "health": "Health & outbreaks",
     "climate": "Climate & environment",
     "crime": "Crime & justice",

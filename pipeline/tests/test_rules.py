@@ -272,8 +272,8 @@ def test_every_hazard_code_has_a_label_on_the_site() -> None:
         ("Sample: governor and mayor clash over test plan", "politics"),
         ("Sample: what the midterms mean for a test state", "politics"),
         ("Sample: teachers go on strike over test pay", "economic"),
-        ("Sample: test cloud outage disrupts email services", "technology"),
-        ("Sample: hackers claim test data breach", "technology"),
+        ("Sample: test cloud outage disrupts email services", "cyber"),
+        ("Sample: hackers claim test data breach", "cyber"),
         ("Sample: first test vaccine plant opens", "health"),
         ("Sample: hantavirus cluster linked to a test ship", "health"),
         ("Sample: test country pledges methane cuts", "climate"),
@@ -286,3 +286,25 @@ def test_category_review_2026_words(headline: str, category: str) -> None:
 def test_category_review_2026_ambiguous_words_stay_out() -> None:
     assert "technology" not in categorize_news("Sample: first test vaccine plant opens", [])
     assert "war" not in categorize_news("Sample: teachers go on strike over test pay", [])
+
+
+# Cyber & outages (18 Nov 2026): its own category, the words no longer in Technology.
+@pytest.mark.parametrize(
+    "headline",
+    [
+        "Sample: ransomware attack shuts test hospital systems",
+        "Sample: nationwide power cut leaves test country in the dark",
+        "Sample: internet shutdown ordered during test exams",
+        "Sample: test company confirms cyber-attack",
+    ],
+)
+def test_cyber_and_outages_words(headline: str) -> None:
+    categories = categorize_news(headline, [])
+    assert "cyber" in categories
+    assert "technology" not in categories
+
+
+def test_cyber_section() -> None:
+    assert category_basis(
+        "Sample: test firm patches its systems", [], "https://example.org/cybersecurity/a-1"
+    ) == {"cyber": "section:cybersecurity"}

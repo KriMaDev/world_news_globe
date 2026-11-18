@@ -609,5 +609,18 @@
     "kind": "sample",
     "published": "2026-11-07T05:00:00Z",
     "sources": []
+  },
+  {
+    "id": "sample-48",
+    "title": "Sample: nationwide internet outage reported",
+    "snippet": "Sample event for the preview. Not a real report.",
+    "place": "Testland",
+    "lat": 9.0,
+    "lng": 38.7,
+    "severity": "high",
+    "categories": ["cyber"],
+    "kind": "sample",
+    "published": "2026-11-07T06:15:00Z",
+    "sources": []
   }
 ]

@@ -1,6 +1,7 @@
-"""Categories: War, Politics, Natural disasters, Economic, Technology advancements, Health &
-outbreaks, Climate & environment, Crime & justice, Humanitarian & migration, Science & space,
-Sport (the last five added 8 Nov 2026 after a review of what people search for).
+"""Categories: War, Politics, Natural disasters, Economic, Technology advancements, Cyber &
+outages, Health & outbreaks, Climate & environment, Crime & justice, Humanitarian & migration,
+Science & space, Sport (the last five added 8 Nov 2026 after a review of what people search for;
+Cyber & outages on 18 Nov 2026, with Cloudflare Radar's outage feed).
 
 Rules (docs/categories.md): data feeds are natural disasters. For news:
 1. An article in an outlet's sport section is Sport, and only Sport.
@@ -25,6 +26,7 @@ CATEGORIES = (
     "natural-disasters",
     "economic",
     "technology",
+    "cyber",
     "health",
     "climate",
     "crime",
@@ -64,9 +66,9 @@ THEMES: dict[str, tuple[str, ...]] = {
     "economic": ("ECON_", "EPU_ECONOMY", "EPU_POLICY", "UNEMPLOYMENT", "WB_1104_MACROECONOMIC"),
     "technology": (
         "WB_133_INFORMATION_AND_COMMUNICATION_TECHNOLOGIES",
-        "CYBER_ATTACK",
         "TECH_",
     ),
+    "cyber": ("CYBER_ATTACK",),
     "health": (
         "HEALTH_PANDEMIC",
         "HEALTH_VACCINATION",
@@ -258,13 +260,10 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
         "robotics",
         "battery",
         "batteries",
-        "cyberattack",
         "software",
         "supercomputer",
         "launch",
         "breakthrough",
-        "outage",
-        "outages",
         "data centre",
         "data centres",
         "data center",
@@ -273,10 +272,39 @@ KEYWORDS: dict[str, tuple[str, ...]] = {
         "electric vehicles",
         "chatbot",
         "chatbots",
+    ),
+    # Added 18 Nov 2026 with Cloudflare Radar; took the cyber and outage words from
+    # Technology. "Blackout" also means a power cut, which is an outage too.
+    "cyber": (
+        "cyberattack",
+        "cyberattacks",
+        "cyber attack",
+        "cyber attacks",
+        "cyber-attack",
+        "cyber-attacks",
+        "cybersecurity",
         "hackers",
+        "hacker",
         "hacked",
-        "data breach",
+        "hacking",
         "ransomware",
+        "malware",
+        "spyware",
+        "phishing",
+        "ddos",
+        "data breach",
+        "data leak",
+        "zero-day",
+        "outage",
+        "outages",
+        "internet shutdown",
+        "internet blackout",
+        "power cut",
+        "power cuts",
+        "power outage",
+        "power outages",
+        "blackout",
+        "blackouts",
     ),
     # Not "WHO": matching ignores case, so "Who is ..." would count. The full name works.
     "health": (
@@ -591,6 +619,8 @@ SECTION_CATEGORIES: dict[str, str] = {
     "technology": "technology",
     "tech": "technology",
     "science-technology": "technology",
+    "cybersecurity": "cyber",
+    "cyber": "cyber",
     "health": "health",
     "law": "crime",
     "crime": "crime",
