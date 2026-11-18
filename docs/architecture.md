@@ -64,6 +64,7 @@ Cloudflare Workers static assets @ globe.krimadev.com
   1. A place the headline names itself: the most specific one (city, then region, then country).
   2. Else a country the headline names as part of a place (GDELT records adjectives too: "Russian" names Russia), at country level.
   3. Else the article is not placed on the globe, because guessing from the article's body too often picks the wrong country.
+  - On a tie, a place named by its own name beats one named by a nationality word: "U.K. sanctions Israeli companies building West Bank settlements" is placed in the West Bank, not Israel (18 Nov 2026). GDELT codes "Palestinian" with Israel's code; it is read as the Palestinian Territory (`COUNTRY_FIXES` in `sources/gdelt.py`), as GeoNames and UN M49 have it.
 
 **Grouping duplicates.**
 

@@ -192,6 +192,40 @@ def test_gdelt_whole_country_takes_gdelts_country_code(gazetteer, now) -> None:
     assert event.geo.precision == "country"
 
 
+def test_gdelt_a_place_named_itself_beats_a_nationality_word() -> None:
+    """Both are whole countries: "West Bank" wins over "Israeli", although "Israeli" comes
+    first in the article (seen 18 Nov 2026)."""
+    mentions = gdelt.parse_mentions(
+        "1#Israeli#IS#IS##31.5#34.75#IS#10;1#West Bank#WE#WE##31.666667#35.25#WE#40"
+    )
+    chosen = gdelt.main_place(
+        mentions, "Sample: test sanctions on Israeli firms working in West Bank", frozenset()
+    )
+    assert chosen is not None
+    assert chosen[0].name == "West Bank"
+
+
+def test_gdelt_country_names_are_not_nationality_words() -> None:
+    """ "Iran" ends like a nationality word but is a country: a tie goes to the first."""
+    mentions = gdelt.parse_mentions("1#Iran#IR#IR##32#53#IR#10;1#Iraq#IZ#IZ##33#44#IZ#40")
+    chosen = gdelt.main_place(
+        mentions, "Sample: Iran and Iraq hold test talks", frozenset({"iran"})
+    )
+    assert chosen is not None
+    assert chosen[0].name == "Iran"
+
+
+def test_gdelt_palestinian_is_the_palestinian_territory(gazetteer, now) -> None:
+    """GDELT codes "Palestinian" with Israel's code."""
+    row = gkg_row(
+        "https://www.aljazeera.com/news/5",
+        "Sample: Palestinian test farmers protest over water",
+        "1#Palestinian#IS#IS##31.5#34.75#IS#10",
+    )
+    event = gdelt.parse_rows(row, gazetteer, now)[0][0]
+    assert (event.geo.country_code, event.geo.precision) == ("PS", "country")
+
+
 def test_gdelt_stamps_to_fetch(now) -> None:
     latest = gdelt.parse_stamp("20261107120000")
     stamps = gdelt.stamps_to_fetch(gdelt.parse_stamp("20261107113000"), latest)

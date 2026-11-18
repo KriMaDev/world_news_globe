@@ -121,6 +121,27 @@ def _named_in(headline: str, mention: Mention) -> int:
 
 _SPECIFICITY = {**dict.fromkeys(CITY_TYPES, 3), **dict.fromkeys(REGION_TYPES, 2), 1: 1}
 
+#: Endings of nationality words ("Israeli", "Palestinians", "Chinese", "British", "Iranian").
+_NATIONALITY_ENDINGS = ("i", "is", "ian", "ians", "ean", "eans", "ese", "ish", "an", "ans")
+
+#: Whole-country mentions GDELT codes with another country's code: name -> ISO code. GDELT
+#: tags "Palestinian" with Israel's code; GeoNames and the UN's M49 list have the Palestinian
+#: Territory as its own entry (seen 18 Nov 2026, docs/architecture.md).
+COUNTRY_FIXES = {"palestinian": "PS", "palestinians": "PS", "palestine": "PS"}
+
+
+def _names_itself(headline: str, mention: Mention, gazetteer_names: frozenset[str]) -> bool:
+    """Whether the headline names the place by its own name as a whole word ("West Bank"),
+    not by a nationality word ("Israeli") or a word starting with the name ("Israeli" for
+    "Israel")."""
+    parts = _name_parts(mention)
+    if not parts or not re.search(r"\b" + re.escape(parts[0]) + r"\b", headline, re.I):
+        return False
+    name = parts[0].lower()
+    if mention.type in COUNTRY_TYPES and name not in gazetteer_names:
+        return not name.endswith(_NATIONALITY_ENDINGS)
+    return True
+
 
 def _country_level(mentions: list[Mention], fips: str) -> Mention:
     """The article's country-level mention of a country (its centroid), else its first
@@ -129,13 +150,18 @@ def _country_level(mentions: list[Mention], fips: str) -> Mention:
     return next((m for m in same if m.type in COUNTRY_TYPES), same[0])
 
 
-def main_place(mentions: list[Mention], headline: str) -> tuple[Mention, bool] | None:
+def main_place(
+    mentions: list[Mention], headline: str, gazetteer_names: frozenset[str] = frozenset()
+) -> tuple[Mention, bool] | None:
     """The article's main place, and whether it is placed at country level only, or None.
 
     News is placed only where its headline names a place (GDELT also records adjectives,
     e.g. "German" for Germany, as mentions):
     1. A place the headline names itself (e.g. "Sanaa"): the most specific such place
-       (city, then region, then country), the earliest mentioned on ties.
+       (city, then region, then country). On a tie, a place named by its own name wins over
+       one named by a nationality word ("West Bank" over "Israeli"), then the earliest
+       mentioned. `gazetteer_names`: country names in lower case, which are never taken
+       for nationality words ("Iran", "Mali").
     2. Else a country or region the headline names as part of a place (e.g. "Russian
        diesel" names Russia): that country, at country level.
     3. Else None: the article is not placed on the globe. Guessing from the article's body
@@ -143,7 +169,14 @@ def main_place(mentions: list[Mention], headline: str) -> tuple[Mention, bool] |
     """
     exact = [m for m in mentions if _named_in(headline, m) == 2]
     if exact:
-        best = max(exact, key=lambda m: (_SPECIFICITY.get(m.type, 0), -m.offset))
+        best = max(
+            exact,
+            key=lambda m: (
+                _SPECIFICITY.get(m.type, 0),
+                _names_itself(headline, m, gazetteer_names),
+                -m.offset,
+            ),
+        )
         return best, False
     partial = [m for m in mentions if _named_in(headline, m) == 1]
     if partial:
@@ -163,7 +196,8 @@ def geo_for(mention: Mention, gazetteer: Gazetteer, country_only: bool) -> Geo:
     from_coordinates = found.country_code if found and found.country_code else None
     from_code = gazetteer.iso_from_fips(mention.fips)
     if mention.type in COUNTRY_TYPES:
-        iso2 = from_code or from_coordinates
+        fixed = COUNTRY_FIXES.get(mention.name.strip().lower())
+        iso2 = fixed if fixed in gazetteer.countries else from_code or from_coordinates
     else:
         iso2 = from_coordinates or from_code
     if country_only or mention.type in COUNTRY_TYPES:
@@ -180,6 +214,7 @@ def parse_rows(text: str, gazetteer: Gazetteer, now: datetime) -> tuple[list[Eve
     """Events from one GKG file's text, and how many allowlisted items had no place."""
     events: dict[str, Event] = {}
     unplaced = 0
+    names = frozenset(info["name"].lower() for info in gazetteer.countries.values())
     for line in text.splitlines():
         f = line.split("\t")
         if len(f) <= COL_EXTRAS:
@@ -197,7 +232,7 @@ def parse_rows(text: str, gazetteer: Gazetteer, now: datetime) -> tuple[list[Eve
         categories = list(basis)
         if not categories:
             continue
-        chosen = main_place(parse_mentions(f[COL_LOCATIONS]), title)
+        chosen = main_place(parse_mentions(f[COL_LOCATIONS]), title, names)
         if chosen is None:
             unplaced += 1
             continue
