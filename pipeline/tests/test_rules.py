@@ -153,7 +153,7 @@ def test_health_and_outbreaks() -> None:
         ("Sample: COP31 talks run late over emissions targets", ["climate"]),
         ("Sample: glaciers shrink faster than forecast", ["climate"]),
         ("Sample: gunman arrested after shooting at market", ["crime"]),
-        ("Sample: former mayor sentenced for fraud", ["crime"]),
+        ("Sample: former mayor sentenced for fraud", ["politics", "crime"]),
         ("Sample: refugees cross the border as famine spreads", ["humanitarian"]),
         ("Sample: aid convoy reaches the city", ["humanitarian"]),
         ("Sample: astronauts return from the space station", ["science"]),
@@ -262,3 +262,27 @@ def test_every_hazard_code_has_a_label_on_the_site() -> None:
     labelled = set(re.findall(r"^\s+([A-Z]{2}):", block, re.M))
     gdacs = {"EQ", "TC", "FL", "VO", "DR", "WF"}
     assert {code for code, _ in HAZARD_WORDS} | gdacs == labelled
+
+
+# Category review 2026 (18 Nov 2026): made-up headlines for each change.
+@pytest.mark.parametrize(
+    ("headline", "category"),
+    [
+        ("Sample: test air attacks hit a made-up city overnight", "war"),
+        ("Sample: governor and mayor clash over test plan", "politics"),
+        ("Sample: what the midterms mean for a test state", "politics"),
+        ("Sample: teachers go on strike over test pay", "economic"),
+        ("Sample: test cloud outage disrupts email services", "technology"),
+        ("Sample: hackers claim test data breach", "technology"),
+        ("Sample: first test vaccine plant opens", "health"),
+        ("Sample: hantavirus cluster linked to a test ship", "health"),
+        ("Sample: test country pledges methane cuts", "climate"),
+    ],
+)
+def test_category_review_2026_words(headline: str, category: str) -> None:
+    assert category in categorize_news(headline, [])
+
+
+def test_category_review_2026_ambiguous_words_stay_out() -> None:
+    assert "technology" not in categorize_news("Sample: first test vaccine plant opens", [])
+    assert "war" not in categorize_news("Sample: teachers go on strike over test pay", [])
