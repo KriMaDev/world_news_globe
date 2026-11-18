@@ -1,6 +1,6 @@
 /**
- * The time window: presets (6 h, 24 h, 3 days, 7 days) and an "ending at" slider that moves
- * the window back in time by the hour, down to 7 days ago. Built once and updated in place,
+ * The time window: presets (6 h, 24 h, 3 days, 7 days, 14 days) and an "ending at" slider that
+ * moves the window back in time by the hour, down to 14 days ago. Built once and updated in place,
  * so dragging the slider is never interrupted by a redraw.
  */
 
@@ -38,7 +38,7 @@ export function hoursBack(state: FilterState, now: number): number {
   return state.end === null ? 0 : Math.max(0, Math.round((now - state.end) / HOUR));
 }
 
-/** The furthest back the window may end, so it never reaches past the 7 days of data. */
+/** The furthest back the window may end, so it never reaches past the 14 days of data. */
 export function maxHoursBack(range: RangeKey): number {
   return HISTORY_HOURS - RANGES[range];
 }

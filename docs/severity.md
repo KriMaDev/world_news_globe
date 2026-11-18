@@ -26,6 +26,14 @@ Each event is a pillar of light rising from its location. These are Okabe-Ito co
 
 Green → low, Orange → high, Red → critical. GDACS alerts are automated estimates: the card says so and points to official national authorities. This mapping is our change to GDACS's data, stated as required by its CC BY 4.0 licence.
 
+### WHO outbreak reports
+
+The disease named in WHO's own title decides (`who_severity`, matched as a word start):
+
+- **Critical:** Ebola, Marburg, smallpox, plague.
+- **High:** Nipah, MERS (Middle East respiratory syndrome), avian or novel influenza in humans (`influenza A(H…`), cholera, yellow fever, mpox, polio, diphtheria, Lassa fever, Crimean-Congo haemorrhagic fever, and illness of undetermined cause.
+- **Moderate:** every other report. WHO only publishes notable outbreaks, so a report is never low.
+
 ### The same earthquake from USGS and GDACS
 
 They become one event listing both sources (see `pipeline/globe_pipeline/cluster.py`). It takes the higher of the two levels, with that rule's reason.

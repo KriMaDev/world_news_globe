@@ -373,3 +373,15 @@ def test_links_that_are_not_web_addresses_never_reach_a_page(now) -> None:
 
     assert [event.id for event in result] == ["mixed"]
     assert result[0].sources == [good]
+
+
+def test_data_feeds_keep_their_older_events_and_take_fresh_copies(now) -> None:
+    """USGS and GDACS give one week; earlier events stay for the 14-day timeline."""
+    old = news("q-old", "Earlier test quake", "dw", now, 10 * 24 * 60)
+    before = news("q-1", "Test quake first estimate", "dw", now, 60)
+    fresh = replace(before, title="Test quake revised")
+    kept = run_module.with_older([fresh], [old, before])
+    assert [(e.id, e.title) for e in kept] == [
+        ("q-1", "Test quake revised"),
+        ("q-old", "Earlier test quake"),
+    ]

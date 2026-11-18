@@ -12,9 +12,10 @@ describe('timeline maths', () => {
     expect(hoursBack(state, NOW)).toBe(5);
   });
 
-  it('never lets the window reach past the 7 days of data', () => {
-    expect(maxHoursBack('6h')).toBe(162);
-    expect(maxHoursBack('3d')).toBe(96);
-    expect(maxHoursBack('7d')).toBe(0);
+  it('never lets the window reach past the 14 days of data', () => {
+    expect(maxHoursBack('6h')).toBe(330);
+    expect(maxHoursBack('3d')).toBe(264);
+    expect(maxHoursBack('7d')).toBe(168);
+    expect(maxHoursBack('14d')).toBe(0);
   });
 });

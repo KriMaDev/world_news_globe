@@ -69,6 +69,11 @@ function notes(event: GlobeEvent): string[] {
   if (event.feed === 'gdacs' || event.sources.some((s) => s.name === 'GDACS')) {
     lines.push('GDACS alerts are automated estimates. Check official national authorities.');
   }
+  if (event.feed === 'who') {
+    lines.push(
+      'Official report from the World Health Organization, shown for 14 days after publication.',
+    );
+  }
   if (event.kind === 'sample') lines.push('No source: this is sample data for the preview.');
   return lines;
 }

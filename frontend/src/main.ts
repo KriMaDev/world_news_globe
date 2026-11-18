@@ -17,6 +17,7 @@ import { startAnalytics } from './analytics';
 import { compareBySeverity, parseEvents } from './events';
 import type { Cluster } from './clusters';
 import {
+  currentIn,
   defaultFilters,
   fromQuery,
   isDefault,
@@ -334,10 +335,7 @@ const placePicker = createPlacePicker(
     filters = { ...filters, place: path };
     applyFilters();
     const { from, to } = windowOf(filters, Date.now());
-    const inWindow = allEvents.filter((e) => {
-      const time = Date.parse(e.published);
-      return time >= from && time <= to;
-    });
+    const inWindow = allEvents.filter((e) => currentIn(e, from, to));
     const center = placeCenter(inWindow, path);
     if (center) app?.flyOver(center.lat, center.lng, placeAltitude(path.length));
   },
@@ -413,10 +411,7 @@ function applyFilters(): void {
   const now = Date.now();
   const { from, to } = windowOf(filters, now);
   ensureHistory(from);
-  const inWindow = allEvents.filter((e) => {
-    const time = Date.parse(e.published);
-    return time >= from && time <= to;
-  });
+  const inWindow = allEvents.filter((e) => currentIn(e, from, to));
   events = inWindow.filter((e) => matchesExceptTime(e, filters)).sort(compareBySeverity);
   panel.render(filters, chipCounts(inWindow), activeFilters(filters));
   timeline.update(filters, now);
@@ -666,12 +661,10 @@ function chooseCountry(iso2: string): void {
   const country = geoData?.countries.find((c) => c.iso2 === iso2);
   if (!country) return;
   const { from, to } = windowOf(filters, Date.now());
-  const match = allEvents.find((e) => {
-    const time = Date.parse(e.published);
-    return (
-      e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && time >= from && time <= to
-    );
-  });
+  const match = allEvents.find(
+    (e) =>
+      e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && currentIn(e, from, to),
+  );
   const here = mapView === 'geo' ? events.filter((e) => e.geo?.country_code === iso2) : [];
   const severity = countrySeverity(here).get(iso2);
   setAccent(severity ? SEVERITY_STYLES[severity].color : null);
@@ -826,7 +819,7 @@ async function start(): Promise<void> {
     container.classList.add('ready');
     applyFilters();
     if (loadFailed) notice("Couldn't load the latest events. Please try again in a few minutes.");
-    else if (allEvents.length === 0) notice('No events in the last 7 days.');
+    else if (allEvents.length === 0) notice('No events in the last 14 days.');
   } catch (error) {
     console.error(error);
     showList('The 3D globe could not start, so the events are listed instead.');

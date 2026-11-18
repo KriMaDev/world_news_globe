@@ -6,17 +6,18 @@
 import { CATEGORIES, SEVERITIES, type Category, type GlobeEvent, type Severity } from './types';
 import type { MapView } from './geography';
 
-/** Time windows, in hours. The data covers 7 days. */
-export const RANGES = { '6h': 6, '24h': 24, '3d': 72, '7d': 168 } as const;
+/** Time windows, in hours. The data covers 14 days. */
+export const RANGES = { '6h': 6, '24h': 24, '3d': 72, '7d': 168, '14d': 336 } as const;
 export type RangeKey = keyof typeof RANGES;
 export const RANGE_LABELS: Record<RangeKey, string> = {
   '6h': '6 h',
   '24h': '24 h',
   '3d': '3 days',
   '7d': '7 days',
+  '14d': '14 days',
 };
 export const DEFAULT_RANGE: RangeKey = '3d';
-export const HISTORY_HOURS = 168;
+export const HISTORY_HOURS = 336;
 
 /** The place levels, from widest to narrowest; a path holds a value for the first few. */
 export const PLACE_LEVELS = ['continent', 'region', 'country_code', 'admin1', 'city'] as const;
@@ -66,11 +67,18 @@ export function matchesExceptTime(event: GlobeEvent, state: FilterState): boolea
   );
 }
 
+/** Whether an event is current at some moment of [from, to]: published by `to`, and published
+ * (or still current, `until`) at `from` or later. */
+export function currentIn(event: GlobeEvent, from: number, to: number): boolean {
+  const published = Date.parse(event.published);
+  const until = event.until ? Date.parse(event.until) : published;
+  return published <= to && Math.max(published, until) >= from;
+}
+
 /** Whether an event passes every filter. */
 export function matches(event: GlobeEvent, state: FilterState, now: number): boolean {
   const { from, to } = windowOf(state, now);
-  const time = Date.parse(event.published);
-  return time >= from && time <= to && matchesExceptTime(event, state);
+  return currentIn(event, from, to) && matchesExceptTime(event, state);
 }
 
 export function isDefault(state: FilterState): boolean {

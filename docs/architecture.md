@@ -6,10 +6,10 @@ No server runs all the time. A Python pipeline runs on a schedule and writes sta
 Cloudflare Worker world-news-globe-timer: Cron Trigger at minutes 7 and 37 (worker/ → GitHub workflow_dispatch)
 GitHub Actions (.github/workflows/update.yml, once LIVE is on; its own schedule is a 3-hourly backup)
   └─ Python pipeline (pipeline/globe_pipeline/run.py, standard library only)
-       sources: USGS · GDACS · GDELT GKG (allowlisted outlets)
+       sources: USGS · GDACS · WHO outbreak reports · GDELT GKG (allowlisted outlets)
        → place (GeoNames + UN M49) → categorize → severity → group duplicates
-       → merge with the last published data, keep 7 days
-       → events.json (last 72 h), days/YYYY-MM-DD.json + days/index.json (7 days), feeds.json,
+       → merge with the last published data, keep 14 days
+       → events.json (last 72 h), days/YYYY-MM-DD.json + days/index.json (14 days), feeds.json,
          outlets.json (outlets' country and ownership, events per outlet; data providers' credits)
   └─ npm run build (frontend + data) → wrangler deploy
 Cloudflare Workers static assets @ globe.krimadev.com
@@ -20,7 +20,7 @@ Cloudflare Workers static assets @ globe.krimadev.com
 - **Cost and speed.** Static files cost nothing to host and are cached at Cloudflare's edge.
 - **Public data.** `/data/events.json`, `/data/days/`, `/data/feeds.json` and `/data/outlets.json` are public URLs, which also serve as an open JSON API.
 - **Failures stay contained.** Each source is fetched on its own. If one fails, its last good events are kept, and `feeds.json` gives it status `error` with the time of its last success.
-- **State between runs.** Each run reads the previous `days/index.json`, the day files it lists, `events.json` and `feeds.json` from the live site. That keeps events for 7 days, keeps the time each story was first seen, and keeps GDELT's cursor (the last 15-minute file read). With nothing published yet, it starts fresh with the last 6 hours.
+- **State between runs.** Each run reads the previous `days/index.json`, the day files it lists, `events.json` and `feeds.json` from the live site. That keeps events for 14 days (USGS and GDACS give a week at a time; their earlier events are kept from the previous run), keeps the time each story was first seen, and keeps GDELT's cursor (the last 15-minute file read). With nothing published yet, it starts fresh with the last 6 hours.
 - **Fallback.** If redeploying every 30 minutes ever causes trouble, `data/` moves to a free R2 bucket.
 
 ## Layout
@@ -40,22 +40,23 @@ Cloudflare Workers static assets @ globe.krimadev.com
 
 ## Pipeline
 
-| Step                                        | Module                                                    | Rules in             |
-| ------------------------------------------- | --------------------------------------------------------- | -------------------- |
-| Fetch (polite, retries, generic User-Agent) | `http.py`                                                 | `docs/sources.md`    |
-| USGS, GDACS, GDELT                          | `sources/usgs.py`, `sources/gdacs.py`, `sources/gdelt.py` | `docs/sources.md`    |
-| Outlet allowlist and headline clean-up      | `outlets.py`                                              | `docs/sources.md`    |
-| Places                                      | `geocode.py`                                              | below                |
-| Categories                                  | `categorize.py`                                           | `docs/categories.md` |
-| Severity                                    | `severity.py`                                             | `docs/severity.md`   |
-| Grouping duplicates                         | `cluster.py`                                              | below                |
-| Output, previous data                       | `output.py`, `run.py`                                     | below                |
+| Step                                        | Module                                                                      | Rules in             |
+| ------------------------------------------- | --------------------------------------------------------------------------- | -------------------- |
+| Fetch (polite, retries, generic User-Agent) | `http.py`                                                                   | `docs/sources.md`    |
+| USGS, GDACS, WHO, GDELT                     | `sources/usgs.py`, `sources/gdacs.py`, `sources/who.py`, `sources/gdelt.py` | `docs/sources.md`    |
+| Outlet allowlist and headline clean-up      | `outlets.py`                                                                | `docs/sources.md`    |
+| Places                                      | `geocode.py`                                                                | below                |
+| Categories                                  | `categorize.py`                                                             | `docs/categories.md` |
+| Severity                                    | `severity.py`                                                               | `docs/severity.md`   |
+| Grouping duplicates                         | `cluster.py`                                                                | below                |
+| Output, previous data                       | `output.py`, `run.py`                                                       | below                |
 
 **Places.**
 
 - **The hierarchy:** continent (GeoNames), region (UN M49, its intermediate region where there is one, e.g. "South America", else its sub-region, e.g. "Western Europe"), country, province/state (GeoNames admin1) and city.
 - **Points (USGS, GDACS, and GDELT's coordinates):**
-  - The city is the most populous place within 30 km, else the nearest place within 75 km.
+  - The city is the most populous place within 30 km in the same country as the nearest place (so a big city across a border never wins: Ramallah stays in the West Bank, fixed 18 Nov 2026), else the nearest place within 75 km.
+  - Places, names and borders take no side in territorial disputes; `/about/#borders` says so.
   - Within 250 km, the event is at region level ("Valparaiso, Chile").
   - Further away it is "remote" (sea, desert, ice), and the source's own place text is shown.
   - The coordinates decide the country, not a source's country code (GDELT tags Gaza with Israel's code). Exception: when GDELT names a whole country, its country code decides, since its point for a country is only a centroid (Israel's lies next to Gaza; fixed 8 Nov 2026).
@@ -83,7 +84,7 @@ Cloudflare Workers static assets @ globe.krimadev.com
 | Filters (category, severity, place, time window), kept in the web address (`cat`, `sev`, `place`, `range`, `end`, `view`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `frontend/src/filters.ts`, `frontend/src/ui/filter-panel.ts`                                                                                 |
 | Headlines panel (the globe's events as a list, feed status, "out of date" after 2 h; `list=1` in the web address)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `frontend/src/ui/news-panel.ts`, `frontend/src/feeds.ts`                                                                                     |
 | Place drill-down (continent → region → country → province/state → city), built from the events' `geo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `frontend/src/places.ts`, `frontend/src/ui/place-picker.ts`                                                                                  |
-| Timeline: 6 h, 24 h, 3 days, 7 days, and an "ending at" slider; loads day files on demand                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `frontend/src/ui/timeline.ts`, `frontend/src/main.ts`                                                                                        |
+| Timeline: 6 h, 24 h, 3 days, 7 days, 14 days, and an "ending at" slider; loads day files on demand                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `frontend/src/ui/timeline.ts`, `frontend/src/main.ts`                                                                                        |
 | Coastlines and borders (Natural Earth 50m), brighter on the night side                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `frontend/src/globe/lines.ts`, `frontend/public/geo/lines.bin`                                                                               |
 | Atlas: rivers and lake shores as lines, river and lake labels; lakes are painted as water on Geography and the Atlas (rivers ranked by length)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `frontend/public/geo/water.bin`, `lakes.json`, `labels.json` (`waters`); `globe/lines.ts`, `globe/globe.ts`, `geography.ts`                  |
 | Geography map: countries coloured by severity (rule in `docs/severity.md`), labels for countries, seas, oceans and capitals by zoom; the Atlas adds ranges, deserts and peaks, decluttered on screen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `frontend/src/geography.ts`, `frontend/src/globe/globe.ts`, `frontend/public/geo/countries.json`, `labels.json`                              |
@@ -118,6 +119,7 @@ Everything from a feed is rendered as text (`textContent`), never as HTML. The s
 | `hazard`          | string or null                                                                     | Type of natural disaster: GDACS/USGS code (EQ, TC, FL, VO, DR, WF) for data feeds; for news, from the headline (also TS, LS, AV, HW, ST); see `docs/categories.md` |
 | `published`       | ISO 8601                                                                           | When the source published it; for news, when GDELT first saw it                                                                                                    |
 | `first_seen`      | ISO 8601                                                                           | When our pipeline first saw it                                                                                                                                     |
+| `until`           | ISO 8601, optional                                                                 | When it stops being current (WHO reports: 14 days after publication); it counts in every time window it overlaps                                                   |
 | `coverage`        | integer ≥ 1                                                                        | How many different outlets or providers report it                                                                                                                  |
 | `sources`         | list of `{name, url, state_affiliated}`                                            | Every report, with a link                                                                                                                                          |
 | `geo`             | `{continent, region, country, country_code, admin1, city, precision}`              | The place hierarchy; `precision` is `city`, `region`, `country` or `remote`                                                                                        |
@@ -125,7 +127,7 @@ Everything from a feed is rendered as text (`textContent`), never as HTML. The s
 
 ### `data/days/`
 
-- `days/index.json`: `{ "generated", "window_hours": 168, "days": [{day, file, count}] }`, newest day first.
+- `days/index.json`: `{ "generated", "window_hours": 336, "days": [{day, file, count}] }`, newest day first.
 - `days/YYYY-MM-DD.json`: `{ "generated", "day", "events": [...] }`, every event published on that UTC day, in the same shape as above. Only the last 7 days are kept; older files are removed.
 
 ### `data/feeds.json`

@@ -11,7 +11,12 @@ export interface FeedsReport {
   feeds: FeedStatus[];
 }
 
-export const FEED_NAMES: Record<string, string> = { usgs: 'USGS', gdacs: 'GDACS', gdelt: 'GDELT' };
+export const FEED_NAMES: Record<string, string> = {
+  usgs: 'USGS',
+  gdacs: 'GDACS',
+  who: 'WHO',
+  gdelt: 'GDELT',
+};
 
 /** The update runs every 30 minutes; after 2 hours, something is wrong. */
 export const STALE_AFTER_MS = 2 * 3_600_000;

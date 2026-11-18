@@ -77,6 +77,14 @@ def _mark_partial(status: FeedStatus, last_success: str | None) -> None:
         status.note = f"{missing} of {read + missing} files could not be read"
 
 
+def with_older(fresh: list[Event], previous: list[Event]) -> list[Event]:
+    """A feed's fresh events plus its earlier ones that the feed no longer lists. USGS and
+    GDACS give one week at a time; the timeline reaches back 14 days. A fresh copy of an event
+    (same id) replaces the earlier one, so revised magnitudes and alert levels win."""
+    ids = {event.id for event in fresh}
+    return fresh + [event for event in previous if event.id not in ids]
+
+
 def balance_outlets(
     events: list[Event],
     limit: int = MAX_EVENTS_PER_OUTLET,
@@ -127,11 +135,17 @@ def run(
     statuses = []
     usgs_status = _status(usgs, "data-feed", previous, now)
     quakes = _run_feed(
-        usgs_status, lambda: usgs.fetch(gazetteer, now), by_feed.get("usgs", []), now
+        usgs_status,
+        lambda: with_older(usgs.fetch(gazetteer, now), by_feed.get("usgs", [])),
+        by_feed.get("usgs", []),
+        now,
     )
     gdacs_status = _status(gdacs, "data-feed", previous, now)
     alerts = _run_feed(
-        gdacs_status, lambda: gdacs.fetch(gazetteer, now), by_feed.get("gdacs", []), now
+        gdacs_status,
+        lambda: with_older(gdacs.fetch(gazetteer, now), by_feed.get("gdacs", [])),
+        by_feed.get("gdacs", []),
+        now,
     )
     who_status = _status(who, "data-feed", previous, now)
 

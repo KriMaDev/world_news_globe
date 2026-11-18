@@ -120,7 +120,8 @@
         <ol>
           <li>
             <strong>Collect.</strong> Every 30 minutes an automatic run fetches earthquakes from
-            USGS, disaster alerts from GDACS, and, through the GDELT Project, what the
+            USGS, disaster alerts from GDACS, outbreak reports from the World Health Organization,
+            and, through the GDELT Project, what the
             <a href="/sources/#outlets">listed outlets</a> have published.
           </li>
           <li>
@@ -129,7 +130,7 @@
           </li>
           <li>
             <strong>Publish.</strong> The result is saved as plain files and shown on the globe. The
-            last 72 hours load first, and the timeline reaches back 7 days.
+            last 72 hours load first, and the timeline reaches back 14 days.
           </li>
         </ol>
       </section>
@@ -193,6 +194,13 @@
           <li>
             <strong>Earthquakes.</strong> USGS's impact alert (PAGER, its estimate of the effect on
             people) decides when there is one. Otherwise the magnitude does.
+          </li>
+          <li>
+            <strong>WHO outbreak reports.</strong> The disease named in the report's title decides.
+            Ebola, Marburg, smallpox and plague are critical. Nipah, MERS, bird flu in people,
+            cholera, yellow fever, mpox, polio, diphtheria, Lassa fever, Crimean-Congo fever and
+            illness of unknown cause are high. Every other report is moderate, never low, because
+            WHO only reports notable outbreaks. A report stays on the globe for 14 days.
           </li>
           <li>
             <strong>News.</strong> Only the headline is read, because it is what you see and the

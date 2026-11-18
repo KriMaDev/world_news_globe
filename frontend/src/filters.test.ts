@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  currentIn,
   defaultFilters,
   fromQuery,
   isDefault,
@@ -163,5 +164,32 @@ describe('the web address', () => {
     expect(fromQuery('?sev=none').severities.size).toBe(0);
     expect(state.range).toBe('3d');
     expect(state.end).toBeNull();
+  });
+});
+
+describe('reports that stay current (until)', () => {
+  const HOUR = 3_600_000;
+  const report = event({
+    published: new Date(NOW - 10 * 24 * HOUR).toISOString(),
+    until: new Date(NOW + 4 * 24 * HOUR).toISOString(),
+  });
+
+  it('counts a report in every window while it is current', () => {
+    expect(currentIn(report, NOW - 6 * HOUR, NOW)).toBe(true);
+    expect(matches(report, defaultFilters(), NOW)).toBe(true);
+  });
+
+  it('never counts it in a window that ends before it was published', () => {
+    expect(currentIn(report, NOW - 14 * 24 * HOUR, NOW - 11 * 24 * HOUR)).toBe(false);
+  });
+
+  it('counts an event without until only at its publication time', () => {
+    const plain = event({ published: new Date(NOW - 10 * 24 * HOUR).toISOString() });
+    expect(currentIn(plain, NOW - 72 * HOUR, NOW)).toBe(false);
+    expect(matches(plain, { ...defaultFilters(), range: '14d' }, NOW)).toBe(true);
+  });
+
+  it('offers a 14-day window', () => {
+    expect(windowOf({ ...defaultFilters(), range: '14d' }, NOW).from).toBe(NOW - 336 * HOUR);
   });
 });
