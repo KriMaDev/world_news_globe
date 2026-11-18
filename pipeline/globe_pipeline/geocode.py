@@ -106,12 +106,21 @@ class Gazetteer:
 
     def city_at(self, lat: float, lng: float) -> tuple[City, float] | None:
         """The city a point belongs to: the most populous place within 30 km (so central
-        Tokyo is Tokyo, not one of its districts), else the nearest within 75 km."""
+        Tokyo is Tokyo, not one of its districts), else the nearest within 75 km.
+
+        The nearest place decides the country; the metropolis rule only looks at places in
+        that same country. Without this, a point in Ramallah (West Bank) went to Jerusalem,
+        Israel, 15 km away and more populous (seen Nov 2026); the same would happen at any
+        border with a big city near it."""
         found = self.cities_within(lat, lng, CITY_RADIUS_KM)
-        close = [pair for pair in found if pair[1] <= METRO_RADIUS_KM]
+        if not found:
+            return None
+        nearest = min(found, key=lambda pair: pair[1])
+        country = nearest[0].country_code
+        close = [p for p in found if p[1] <= METRO_RADIUS_KM and p[0].country_code == country]
         if close:
             return max(close, key=lambda pair: pair[0].population)
-        return min(found, key=lambda pair: pair[1]) if found else None
+        return nearest
 
     def geo_for_country(
         self,

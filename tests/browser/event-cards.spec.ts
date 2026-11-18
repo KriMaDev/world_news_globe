@@ -19,6 +19,8 @@ test('a news card shows the headline word for word, its outlet and why it is rat
     'href',
     /^https:\/\/example\.org\//,
   );
+  // A place found by software says it can be off, also across a border.
+  await expect(card).toContainText('near a border it can land in the neighbouring country');
   // No article text, ever: only what the outlet's headline says.
   await expect(card.locator('.card-snippet')).toHaveCount(0);
 

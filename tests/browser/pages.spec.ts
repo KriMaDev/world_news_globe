@@ -35,6 +35,14 @@ test('Legal lists every right and how to have a headline removed', async ({ page
   await expect(page.locator('#corrections')).toContainText('a headline names you');
 });
 
+test('About says borders and names take no side', async ({ page }) => {
+  await serveWorld(page);
+  await page.goto('/about/');
+  await expect(page.locator('#borders')).toContainText(
+    'takes no position in any territorial dispute',
+  );
+});
+
 const outlets = {
   outlets: [
     {

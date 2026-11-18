@@ -60,7 +60,9 @@ function notes(event: GlobeEvent): string[] {
   if (event.kind === 'news') {
     lines.push(`Headline as published by ${event.sources[0]?.name ?? 'the outlet'}.`);
     if (event.location_method === 'machine-coded') {
-      lines.push('Place worked out by software from the article (GDELT).');
+      lines.push(
+        'Place worked out by software from the article (GDELT). It can be off, and near a border it can land in the neighbouring country.',
+      );
     }
     lines.push(...categoryBasisLines(event));
   }
