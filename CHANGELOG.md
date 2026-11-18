@@ -4,6 +4,12 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
+## 1.12.0 · 2026-11-18
+
+- Markers stay apart and clickable when zoomed in. They keep about the same size on screen at every zoom, instead of growing about five times. Pillars get shorter close up, so they no longer lean over their neighbours. Rings shrink with the zoom.
+- Markers too close together spread into one ring of up to six, each on its own side, with short lines that never cross. A bigger pile stays a group, which opens as a list.
+- The legend can be folded on wider screens too, with an arrow in its top right corner.
+
 ## 1.11.0 · 2026-11-18
 
 - New category, Cyber & outages: hacks, ransomware, data breaches, internet shutdowns, power cuts and big service outages. It takes the cyber and outage words from Technology advancements.
