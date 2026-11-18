@@ -119,8 +119,8 @@ function groupNearby(events: GlobeEvent[], degrees: number): Cluster[] {
  * Britain, 18 Nov 2026). */
 export const MAX_FAN = 6;
 
-/** A pile too big to fan out, as one group per kind (disaster symbols and pillars stay
- * apart, as in clusterEvents): it opens as a list, and splits up as the zoom comes closer. */
+/** Older piles' members as one group per kind (disaster symbols and pillars stay apart, as in
+ * clusterEvents): it opens as a list, and splits up as the zoom comes closer. */
 function mergeByKind(stack: Cluster[]): Cluster[] {
   const kinds = [stack.filter((c) => isDisaster(c.lead)), stack.filter((c) => !isDisaster(c.lead))];
   return kinds
@@ -140,11 +140,29 @@ function mergeByKind(stack: Cluster[]): Cluster[] {
     });
 }
 
+const newestFirst = (a: Cluster, b: Cluster): number =>
+  Date.parse(b.lead.published) - Date.parse(a.lead.published) || a.id.localeCompare(b.id);
+
+/**
+ * A pile too big to fan out keeps its newest stories as their own markers, looking like any
+ * other, and groups only the older ones (owner, 18 Nov 2026: the newest must never be hidden
+ * in a group). The markers and groups together fill one ring of MAX_FAN.
+ */
+export function newestApart(pile: Cluster[]): Cluster[] {
+  if (pile.length <= MAX_FAN) return pile;
+  const sorted = [...pile].sort(newestFirst);
+  for (let apart = MAX_FAN - 1; apart >= 0; apart -= 1) {
+    const groups = mergeByKind(sorted.slice(apart));
+    if (apart + groups.length <= MAX_FAN) return [...sorted.slice(0, apart), ...groups];
+  }
+  return mergeByKind(sorted);
+}
+
 /**
  * Zoomed right in, markers closer than `spacing` degrees (or at the very same place) can't each
  * be tapped, so they move apart in a ring around their middle, each on its own side and
  * remembering its true place.
- * A pile of more than MAX_FAN stays a group instead. Markers with room are left alone. A
+ * A pile of more than MAX_FAN keeps its newest apart and groups the rest (newestApart). Markers with room are left alone. A
  * `spacing` of 0 does nothing.
  */
 export function fanOut(clusters: Cluster[], spacing: number): Cluster[] {
@@ -177,7 +195,7 @@ export function fanOut(clusters: Cluster[], spacing: number): Cluster[] {
     grid.set(key, [...(grid.get(key) ?? []), stack]);
   }
   return stacks.flatMap((pile) => {
-    const stack = pile.length > MAX_FAN ? mergeByKind(pile) : pile;
+    const stack = newestApart(pile);
     if (stack.length === 1) return stack;
     const lat = stack.reduce((sum, c) => sum + c.lat, 0) / stack.length;
     const lng = stack.reduce((sum, c) => sum + c.lng, 0) / stack.length;

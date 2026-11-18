@@ -6,6 +6,7 @@ import {
   clusterOf,
   fanOut,
   MAX_FAN,
+  newestApart,
   type Cluster,
 } from './clusters';
 import type { GlobeEvent, Severity } from './types';
@@ -111,12 +112,12 @@ describe('clusterEvents', () => {
 });
 
 describe('fanOut', () => {
-  const marker = (id: string, lat: number, lng: number, disaster = false): Cluster => {
+  const marker = (id: string, lat: number, lng: number, disaster = false, hour = 0): Cluster => {
     const event = {
       id,
       categories: [disaster ? 'natural-disasters' : 'politics'],
       severity: 'low',
-      published: '2026-11-08T00:00:00Z',
+      published: new Date(Date.UTC(2026, 10, 8, 12 + hour)).toISOString(),
     };
     return { id, lead: event, events: [event], lat, lng, severity: 'low' } as unknown as Cluster;
   };
@@ -148,15 +149,37 @@ describe('fanOut', () => {
     for (const c of out) expect(angularDistance(0, 0, c.lat, c.lng)).toBeCloseTo(1, 3);
   });
 
-  it('keeps a bigger pile as one group per kind, so it opens as a list', () => {
-    const pile = [
-      ...Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0)),
-      marker('d0', 0, 0, true),
-      marker('d1', 0, 0, true),
-    ];
+  it('keeps the newest of a bigger pile as markers of their own, and groups the rest', () => {
+    // n0 is the oldest, n8 the newest.
+    const pile = Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0, false, i));
     const out = fanOut(pile, 1);
-    expect(out.map((c) => c.events.length).sort()).toEqual([2, 9]);
-    expect(out.every((c) => c.id.startsWith('group:'))).toBe(true);
+    expect(out).toHaveLength(MAX_FAN);
+    const singles = out.filter((c) => !c.id.startsWith('group:')).map((c) => c.id);
+    expect(singles.sort()).toEqual(['n4', 'n5', 'n6', 'n7', 'n8']);
+    const group = out.find((c) => c.id.startsWith('group:'))!;
+    expect(group.events.map((e) => e.id).sort()).toEqual(['n0', 'n1', 'n2', 'n3']);
+  });
+
+  it('keeps disaster symbols and pillars in separate groups', () => {
+    const pile = [
+      ...Array.from({ length: 9 }, (_, i) => marker(`n${i}`, 0, 0, false, i)),
+      marker('d0', 0, 0, true, -2),
+      marker('d1', 0, 0, true, -1),
+    ];
+    const out = newestApart(pile);
+    expect(out).toHaveLength(MAX_FAN);
+    expect(out.filter((c) => !c.id.startsWith('group:')).map((c) => c.id)).toEqual([
+      'n8',
+      'n7',
+      'n6',
+      'n5',
+    ]);
+    expect(
+      out
+        .filter((c) => c.id.startsWith('group:'))
+        .map((c) => c.events.length)
+        .sort(),
+    ).toEqual([2, 5]);
   });
 
   it('does nothing with a spacing of 0', () => {

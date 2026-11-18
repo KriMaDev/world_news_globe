@@ -128,10 +128,13 @@ const AUTO_ROTATE_SPEED = 0.35;
 /** Auto-rotation comes back after this long without any interaction. */
 const AUTO_ROTATE_RESUME_MS = 10_000;
 const SUN_UPDATE_MS = 60_000;
-/** Closest zoom with the globe's own images (2K images blur sooner)… */
-const MIN_ALTITUDE: Record<'2k' | '4k', number> = { '2k': 0.6, '4k': 0.5 };
-/** …and once NASA's sharp tiles show (./detail.ts). */
-const DETAIL_MIN_ALTITUDE = 0.15;
+/**
+ * Closest zoom. NASA's sharp tiles (./detail.ts) take over from the globe's own images on the
+ * way in; until they arrive (or if they can't load) the view is softer, but the zoom never
+ * stops. It used to stop at 0.5 until the first tile showed, which felt like a broken zoom
+ * whenever the tiles were slow (owner, 18 Nov 2026).
+ */
+const MIN_ALTITUDE = 0.15;
 /** Furthest zoom, well past the point where the whole globe fits (phones start at 3.6). */
 const MAX_ALTITUDE = 7;
 
@@ -700,9 +703,8 @@ export async function createGlobeApp(
       .catch((error: unknown) => console.warn('Rivers and lakes unavailable:', error));
   }
 
-  // Sharp NASA tiles over the area in view when zooming in. Once they show, the zoom may go
-  // closer; without them (offline, blocked) the old limit stays.
-  let minAltitude = MIN_ALTITUDE[size];
+  // Sharp NASA tiles over the area in view when zooming in.
+  const minAltitude = MIN_ALTITUDE;
   const detail = new DetailLayer({
     base: material,
     renderer,
@@ -710,8 +712,6 @@ export async function createGlobeApp(
     sun: sunVector,
     maxTiles: size === '4k' ? 6 : 4,
     onFirstTile: () => {
-      minAltitude = DETAIL_MIN_ALTITUDE;
-      globe.controls().minDistance = GLOBE_RADIUS * (1 + minAltitude);
       container.dataset.detail = 'on';
     },
   });

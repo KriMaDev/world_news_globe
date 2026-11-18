@@ -85,7 +85,7 @@ How many outlets cover a story is shown as **coverage**, separately. It never ra
 
 ### Markers that stand too close
 
-Zoomed right in, where no grouping happens, markers less than about 60 screen pixels apart (or at the very same place) move apart in one ring of up to six, so each can be tapped. Each takes the slot on its own side, and a thin line joins it to its true place, so lines stay short and never cross. A pile of more than six stays a group (one per kind, see below), which opens as a list and splits up as the zoom comes closer (18 Nov 2026: bigger piles fanned over several rings had spread into a web of crossing lines).
+Zoomed right in, where no grouping happens, markers less than about 60 screen pixels apart (or at the very same place) move apart in one ring of up to six, so each can be tapped. Each takes the slot on its own side, and a thin line joins it to its true place, so lines stay short and never cross. A pile of more than six keeps its **newest** stories as markers of their own, looking like any other, and groups only the older ones (one group per kind, see below), so the ring still holds six; a group opens as a list and splits up as the zoom comes closer (18 Nov 2026: bigger piles fanned over several rings had spread into a web of crossing lines; the owner: the newest must never be hidden in a group).
 
 Markers keep about the same size on screen at every zoom, and below altitude 1 pillars also get shorter (down to 30 % at the closest zoom), with click areas 1.5 times the glowing spot. Before 18 Nov 2026 they grew about 5 times on screen when zoomed in, and tall pillars leaned over their neighbours. The high and critical rings shrink with the zoom too.
 
