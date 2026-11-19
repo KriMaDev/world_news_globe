@@ -275,3 +275,14 @@ export function markersUnder(
 export function clusterOf(clusters: Cluster[], eventId: string): Cluster | undefined {
   return clusters.find((cluster) => cluster.events.some((event) => event.id === eventId));
 }
+
+/** Whether every event of a group is older than `recentFrom` (counting reports that stay
+ * current until later, `until`), so its marker is drawn as a small dot. Never with null. */
+export function isOlder(cluster: Cluster, recentFrom: number | null): boolean {
+  if (recentFrom === null) return false;
+  return cluster.events.every((event) => {
+    const published = Date.parse(event.published);
+    const until = event.until ? Date.parse(event.until) : published;
+    return Math.max(published, until) < recentFrom;
+  });
+}

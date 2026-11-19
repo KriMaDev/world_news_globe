@@ -4,6 +4,7 @@ import {
   clusterDegrees,
   clusterEvents,
   clusterOf,
+  isOlder,
   fanOut,
   markersUnder,
   RING_SLOTS,
@@ -221,5 +222,45 @@ describe('markersUnder', () => {
     const a = at('a', 100, '2026-11-08T10:00:00Z');
     const far = at('far', 300, '2026-11-08T11:00:00Z');
     expect(markersUnder(a, [a, far], screenOf, 28)).toBe(a);
+  });
+});
+
+describe('isOlder', () => {
+  const cut = Date.parse('2026-11-10T00:00:00Z');
+  const group = (...events: GlobeEvent[]): Cluster => ({
+    id: 'g',
+    lead: events[0]!,
+    events,
+    lat: 0,
+    lng: 0,
+    severity: events[0]!.severity,
+  });
+
+  it('is never older without a cut (windows of 3 days or less)', () => {
+    expect(isOlder(group(event('a', 0, 0, 'low', '2026-11-01T00:00:00Z')), null)).toBe(false);
+  });
+
+  it('is older when every event is before the cut', () => {
+    const old = group(
+      event('a', 0, 0, 'low', '2026-11-01T00:00:00Z'),
+      event('b', 0, 0, 'high', '2026-11-09T23:00:00Z'),
+    );
+    expect(isOlder(old, cut)).toBe(true);
+  });
+
+  it('stays recent when one event is new', () => {
+    const mixed = group(
+      event('a', 0, 0, 'critical', '2026-11-01T00:00:00Z'),
+      event('b', 0, 0, 'low', '2026-11-10T01:00:00Z'),
+    );
+    expect(isOlder(mixed, cut)).toBe(false);
+  });
+
+  it('stays recent while a report is still current (until)', () => {
+    const who = {
+      ...event('w', 0, 0, 'high', '2026-11-01T00:00:00Z'),
+      until: '2026-11-15T00:00:00Z',
+    };
+    expect(isOlder(group(who), cut)).toBe(false);
   });
 });

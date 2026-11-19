@@ -4,6 +4,12 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
+## 1.14.0 · 2026-11-19
+
+- Less crowding with long time windows. With 7 or 14 days, news older than the window's last 3 days is a small still dot in its severity colour, without a pillar, pulse or rings; it still opens its card. The newest 3 days stand tall as before, and the default 3-day window is unchanged. The legend explains the dot. On a test PC, 14 days now draws about 140 frames a second instead of 33.
+- Count badges no longer pile up: where two would overlap, the newer and bigger group's badge shows and the other waits until zooming in makes room; badges near the globe's edge are hidden. Their markers can still be clicked.
+- On any device that can't keep up (under about 25 frames a second), the globe's picture may now get slightly softer (down to 75 % sharpness) instead of stuttering. Before, only high-density screens did this.
+
 ## 1.13.0 · 2026-11-19
 
 - Country symbols on the Geography map: each country with news shows the symbol of its main news (the category of its most severe event) in that severity's colour, with "+2" for two more categories. Small countries show their symbol alone where it fits, until their name appears. A country's card lists every category in its news with a count, and the legend lists every symbol.

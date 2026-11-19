@@ -19,7 +19,14 @@ describe('ResolutionGuard', () => {
   it('steps down, and stops at the lowest', () => {
     const guard = new ResolutionGuard(1.5);
     expect(run(guard, 60)).toBe(1.125);
-    expect(run(guard, 60)).toBe(1);
+    expect(run(guard, 60)).toBeCloseTo(0.84375);
+    expect(run(guard, 60)).toBe(0.75);
+    expect(run(guard, 60)).toBeNull();
+  });
+
+  it('lets an ordinary screen go softer too, once', () => {
+    const guard = new ResolutionGuard(1);
+    expect(run(guard, 60)).toBe(0.75);
     expect(run(guard, 60)).toBeNull();
   });
 

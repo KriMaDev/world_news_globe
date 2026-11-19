@@ -26,6 +26,7 @@ import {
   clusterEvents,
   clusterOf,
   fanOut,
+  isOlder,
   markersUnder,
   type Cluster,
 } from '../clusters';
@@ -76,8 +77,9 @@ export interface GlobeAppOptions {
 }
 
 export interface GlobeApp {
-  /** Shows these events (after filtering), regrouped for the current zoom. */
-  setEvents(events: GlobeEvent[]): void;
+  /** Shows these events (after filtering), regrouped for the current zoom; news wholly older
+   * than `recentFrom` is drawn as small dots (null: none; filters.ts, recentFrom). */
+  setEvents(events: GlobeEvent[], recentFrom?: number | null): void;
   /** Flies to an event (or group lead), seen from a little south so its pillar stands up. */
   flyTo(target: { lat: number; lng: number }): void;
   /** Flies straight over a point at a given altitude (for places). */
@@ -420,6 +422,7 @@ export async function createGlobeApp(
   let reducedMotion = options.reducedMotion;
   let selectedId: string | null = null;
   let events = options.events;
+  let recentFrom: number | null = null;
   let degrees = -1;
   let stateLines: LineSegments[] = [];
   let statesRequested = false;
@@ -444,6 +447,9 @@ export async function createGlobeApp(
   /** The HTML layer's items, badges first, then labels by importance (for decluttering). */
   let htmlItems: HtmlItem[] = [];
   const labelElements = new Map<HtmlItem, HTMLElement>();
+  const badgeElements = new WeakMap<HtmlItem, HTMLElement>();
+  /** Each badge's measured half size (px); a group's count never changes. */
+  const badgeSizes = new WeakMap<HTMLElement, [number, number]>();
   const labelSizes = new WeakMap<HTMLElement, [number, number]>();
 
   // No grow-in animation: the atmosphere is a separate object and would not grow with it.
@@ -542,7 +548,11 @@ export async function createGlobeApp(
     .htmlAltitude(BADGE_ALTITUDE)
     .htmlElement((d) => {
       const item = d as HtmlItem;
-      if (item.type === 'badge') return badgeFor(item.cluster, options.onSelect);
+      if (item.type === 'badge') {
+        const badge = badgeFor(item.cluster, options.onSelect);
+        badgeElements.set(item, badge);
+        return badge;
+      }
       const element = mapLabelFor(item.label, newsOf(item.label), (label) =>
         label.iso2 ? options.onCountry?.(label.iso2) : options.onPlace?.(label),
       );
@@ -590,7 +600,9 @@ export async function createGlobeApp(
 
   /** Rings pulse in the news view only (and never with reduced motion). */
   const ringClusters = (): Cluster[] =>
-    reducedMotion || geography ? [] : clusters.filter((c) => SEVERITY_STYLES[c.severity].rings);
+    reducedMotion || geography
+      ? []
+      : clusters.filter((c) => SEVERITY_STYLES[c.severity].rings && !isOlder(c, recentFrom));
 
   /** Markers belong to the News map; the others have none to see or to tap. */
   const showMarkers = (): void => {
@@ -607,9 +619,15 @@ export async function createGlobeApp(
   /** The group badges and, in the geography view, the map labels for the current view. Only
    * labels that can be on screen are kept in the page: every one is moved on every frame. */
   const refreshHtml = (): void => {
+    // Badges in the order they claim room (see declutter): newer groups, then bigger ones.
     const items: HtmlItem[] = clusters
       .filter((c) => mapView === 'news' && c.events.length > 1)
-      .map((cluster) => {
+      .map((cluster) => ({ cluster, older: isOlder(cluster, recentFrom) }))
+      .sort(
+        (a, b) =>
+          Number(a.older) - Number(b.older) || b.cluster.events.length - a.cluster.events.length,
+      )
+      .map(({ cluster }) => {
         let item = badgeItems.get(cluster);
         if (!item) {
           item = { type: 'badge', cluster, lat: cluster.lat, lng: cluster.lng };
@@ -637,9 +655,11 @@ export async function createGlobeApp(
   };
 
   /**
-   * Hides map labels that would overlap a more important one or a count badge, or that sit
-   * near the globe's edge. Labels are placed in order of importance, so the most important
-   * always shows.
+   * Hides count badges that sit near the globe's edge or would overlap a badge placed before
+   * them (newer and bigger groups first; owner, 19 Nov 2026: 14 days piled them up), then map
+   * labels that would overlap a more important one or a badge, or that sit near the globe's
+   * edge. Labels are placed in order of importance, so the most important always shows. A
+   * hidden badge's marker can still be clicked.
    */
   const declutter = (): void => {
     const view = camera.position.clone().normalize();
@@ -659,8 +679,13 @@ export async function createGlobeApp(
     }
     const inside = (box: [number, number, number, number]): boolean =>
       box[0] >= 0 && box[1] >= 0 && box[2] <= area.width && box[3] <= area.height;
-    const free = (box: [number, number, number, number]): boolean =>
-      !placed.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+    const overlaps = (
+      box: [number, number, number, number],
+      boxes: [number, number, number, number][],
+    ): boolean =>
+      boxes.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+    const free = (box: [number, number, number, number]): boolean => !overlaps(box, placed);
+    const badgeBoxes: [number, number, number, number][] = [];
     for (const item of htmlItems) {
       const point = globe.getCoords(item.lat, item.lng, BADGE_ALTITUDE);
       const facing =
@@ -668,9 +693,24 @@ export async function createGlobeApp(
         Math.hypot(point.x, point.y, point.z);
       const screen = globe.getScreenCoords(item.lat, item.lng, BADGE_ALTITUDE);
       if (item.type === 'badge') {
-        if (facing > 0) {
-          const [w, h] = BADGE_HALF;
-          placed.push([screen.x - w, screen.y - h, screen.x + w, screen.y + h]);
+        const element = badgeElements.get(item);
+        let size = element ? badgeSizes.get(element) : undefined;
+        if (element && !size && element.offsetWidth > 0) {
+          size = [element.offsetWidth / 2 + 1, element.offsetHeight / 2 + 1];
+          badgeSizes.set(element, size);
+        }
+        const [w, h] = size ?? BADGE_HALF;
+        const box: [number, number, number, number] = [
+          screen.x - w,
+          screen.y - h,
+          screen.x + w,
+          screen.y + h,
+        ];
+        const shows = facing > LABEL_EDGE && !overlaps(box, badgeBoxes);
+        element?.classList.toggle('is-crowded', !shows);
+        if (shows) {
+          badgeBoxes.push(box);
+          placed.push(box);
         }
         continue;
       }
@@ -731,7 +771,8 @@ export async function createGlobeApp(
     clusters = fanOut(clusterEvents(events, degrees), fanStep === null ? 0 : fanSpacing(fanStep));
     container.dataset.fanned = String(clusters.filter((c) => c.anchor).length);
     pillars.dispose();
-    pillars = new PillarField(clusters, pillarCoords);
+    pillars = new PillarField(clusters, pillarCoords, recentFrom);
+    container.dataset.older = String(pillars.olderCount);
     showMarkers();
     globe.scene().add(pillars.group);
     globe.customLayerData(mapView === 'news' ? clusters : []).ringsData(ringClusters());
@@ -953,7 +994,8 @@ export async function createGlobeApp(
     const sharper = resolution.frame(now - lastFrame);
     lastFrame = now;
     if (sharper !== null) renderer.setPixelRatio(sharper);
-    if (geography && now - lastDeclutter > DECLUTTER_MS) {
+    // The Geography map's labels, and the News map's count badges.
+    if (htmlItems.length > 0 && now - lastDeclutter > DECLUTTER_MS) {
       lastDeclutter = now;
       declutter();
     }
@@ -977,8 +1019,9 @@ export async function createGlobeApp(
   };
 
   return {
-    setEvents(next) {
+    setEvents(next, cut = null) {
       events = next;
+      recentFrom = cut;
       regroup();
     },
     flyTo(target) {

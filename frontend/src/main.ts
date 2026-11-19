@@ -23,6 +23,7 @@ import {
   isDefault,
   matchesExceptTime,
   toQuery,
+  recentFrom,
   windowOf,
   withPageState,
   viewFromQuery,
@@ -387,8 +388,8 @@ async function loadHistory(from: number): Promise<boolean> {
 /** Loads older days if the window needs them, then applies the filters again. */
 function ensureHistory(from: number): void {
   // events.json covers the 72 hours before it was generated; only earlier windows need days.
-  const recentFrom = (dataTime ? Date.parse(dataTime) : Date.now()) - RECENT_HOURS * 3_600_000;
-  if (loadingHistory || from >= recentFrom) return;
+  const loadedFrom = (dataTime ? Date.parse(dataTime) : Date.now()) - RECENT_HOURS * 3_600_000;
+  if (loadingHistory || from >= loadedFrom) return;
   const firstDay = new Date(from).toISOString().slice(0, 10);
   if (dayIndex !== null && dayIndex.every((d) => d.day < firstDay || loadedDays.has(d.day))) return;
   loadingHistory = true;
@@ -430,7 +431,9 @@ function applyFilters(): void {
   });
   updateAddress();
   if (app) {
-    app.setEvents(events);
+    const cut = recentFrom(filters, now);
+    document.body.classList.toggle('long-window', cut !== null);
+    app.setEvents(events, cut);
     if (mapView !== 'news' && geoData) app.setGeography(geoData, newsByCountry(), mapView);
     renderEventList(list, events, listHandlers);
     if (allEvents.length > 0 && !loadingHistory) {

@@ -2,6 +2,8 @@
  * Draws fewer pixels on devices that can't keep up. Over a run of frames, if the typical frame
  * is slow, the next lower sharpness is chosen, until the device keeps up or sharpness can't drop
  * further. It never goes back up in the same visit, so the picture doesn't keep changing.
+ * Every device may go down to LOWEST_RATIO, below one pixel per screen pixel (owner, 19 Nov 2026:
+ * a slightly softer picture beats a stuttering one, on old and new devices alike).
  */
 
 /** Frames longer than this (ms) mean under about 25 frames a second. */
@@ -9,7 +11,7 @@ const SLOW_FRAME_MS = 40;
 const FRAMES_PER_CHECK = 60;
 /** Longer gaps are not drawing speed: the tab was hidden, or an image was being handled. */
 const IGNORE_OVER_MS = 500;
-const LOWEST_RATIO = 1;
+const LOWEST_RATIO = 0.75;
 const STEP = 0.75;
 
 export class ResolutionGuard {

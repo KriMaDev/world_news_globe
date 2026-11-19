@@ -4,7 +4,9 @@
  * instead (./hazard-icons.ts): a glass disc with a severity-coloured rim and halo, floating on
  * a thin stem of light above the same glowing spot, so the two read differently at a glance.
  * Both grow and pulse faster with severity (see ../severity.ts); globe.gl's ring layer adds
- * outward rings for high and critical events (see globe.ts).
+ * outward rings for high and critical events (see globe.ts). News older than the last 3 days of a
+ * longer window is only a small still dot (owner, 19 Nov 2026): overlapping glow made 14 days
+ * slow, and what is new should stand out (../clusters.ts, isOlder).
  *
  * Drawn with instancing: all pillars (or symbols) of one severity share one mesh per part, so a
  * thousand events cost a couple of dozen draw calls. Clicking and hovering use a separate invisible column per
@@ -39,7 +41,7 @@ import {
   Vector3,
 } from 'three';
 import { SEVERITY_STYLES } from '../severity';
-import type { Cluster } from '../clusters';
+import { isOlder, type Cluster } from '../clusters';
 import { SEVERITIES, type Severity } from '../types';
 import { ATLAS_COLUMNS, ATLAS_ROWS, ICON_FILL, drawAtlas, iconIndex } from './hazard-icons';
 
@@ -81,6 +83,10 @@ const SYMBOL_LIFT = 1.2;
  * spot (small and soft, so it doesn't read as a second marker beside the disc). */
 const STEM_WIDTH = 0.42;
 const SYMBOL_SPOT = 0.5;
+/** An older news dot is this much of a pillar's ground spot, and its click column this many
+ * world units tall per unit of width (short, but still easy to hit). */
+const OLDER_DOT = 0.45;
+const OLDER_HIT_HEIGHT = 1.5;
 
 /** Pillar height in world units for a severity: grows faster than the size. */
 export function pillarHeight(severity: Severity): number {
@@ -167,6 +173,21 @@ const spotFragment = /* glsl */ `
     float spot = pow(max(1.0 - d, 0.0), 2.4);
     float halo = pow(max(1.0 - d, 0.0), 1.2) * (0.25 + 0.2 * swell);
     vec3 light = color * (spot * 1.3 + halo) + vec3(1.0) * pow(max(1.0 - d * 3.0, 0.0), 2.0) * 0.8;
+    gl_FragColor = vec4(light, clamp(max(light.r, max(light.g, light.b)), 0.0, 1.0));
+  }
+`;
+
+// An older news dot: still (no pulse, no halo), so it is cheap to paint.
+const dotFragment = /* glsl */ `
+  uniform vec3 color;
+
+  varying vec2 vUv;
+
+  void main() {
+    float d = length(vUv - 0.5) * 2.0;
+    if (d > 1.0) discard;
+    float glow = pow(1.0 - d, 1.6);
+    vec3 light = color * glow * 1.2 + vec3(1.0) * pow(max(1.0 - d * 2.5, 0.0), 2.0) * 0.6;
     gl_FragColor = vec4(light, clamp(max(light.r, max(light.g, light.b)), 0.0, 1.0));
   }
 `;
@@ -290,7 +311,7 @@ interface Anchor {
   icon: number | null;
 }
 
-type PartKind = 'beam' | 'spot' | 'stem' | 'disc';
+type PartKind = 'beam' | 'spot' | 'stem' | 'disc' | 'dot';
 
 /** How much wider a group's pillar is than a single event's. */
 export function groupWidening(count: number): number {
@@ -301,6 +322,8 @@ interface Level {
   severity: Severity;
   /** Pillars of light (news) or disaster symbols. */
   symbols: boolean;
+  /** Older news, drawn as small dots. */
+  older: boolean;
   anchors: Anchor[];
   parts: { mesh: InstancedMesh; kind: PartKind }[];
   materials: ShaderMaterial[];
@@ -318,13 +341,18 @@ export class PillarField {
   private lastZoom = -1;
   private fanLines: LineSegments | null = null;
   private lastSelected: string | null = null;
+  /** How many groups are drawn as older dots. */
+  readonly olderCount: number;
 
-  /** One pillar or symbol per group (see ../clusters.ts); `coords` turns latitude and
-   * longitude into a point on the globe's surface. */
+  /** One pillar, symbol or dot per group (see ../clusters.ts); `coords` turns latitude and
+   * longitude into a point on the globe's surface; news groups wholly older than `recentFrom`
+   * are dots (null: none). */
   constructor(
     clusters: Cluster[],
     coords: (lat: number, lng: number) => { x: number; y: number; z: number },
+    recentFrom: number | null = null,
   ) {
+    let olderCount = 0;
     this.group.name = 'pillars';
     this.addFanLines(clusters, coords);
     for (const severity of SEVERITIES) {
@@ -341,11 +369,16 @@ export class PillarField {
             icon: iconIndex(cluster.lead),
           };
         });
-      const pillars = all.filter((a) => a.icon === null);
+      const news = all.filter((a) => a.icon === null);
+      const older = news.filter((a) => isOlder(a.cluster, recentFrom));
+      const pillars = news.filter((a) => !older.includes(a));
       const symbols = all.filter((a) => a.icon !== null);
       if (pillars.length) this.levels.push(this.pillarLevel(severity, pillars));
+      if (older.length) this.levels.push(this.dotLevel(severity, older));
       if (symbols.length) this.levels.push(this.symbolLevel(severity, symbols));
+      olderCount += older.length;
     }
+    this.olderCount = olderCount;
   }
 
   private mesh(
@@ -384,6 +417,7 @@ export class PillarField {
     return {
       severity,
       symbols: false,
+      older: false,
       anchors,
       parts: [
         { mesh: this.mesh(spotGeometry, spot, anchors.length, 2), kind: 'spot' },
@@ -391,6 +425,24 @@ export class PillarField {
         { mesh: this.mesh(coreGeometry, core, anchors.length, 2), kind: 'beam' },
       ],
       materials: [core, glow, spot],
+    };
+  }
+
+  private dotLevel(severity: Severity, anchors: Anchor[]): Level {
+    const dot = new ShaderMaterial({
+      uniforms: uniformsFor(severity, 1),
+      vertexShader: spotVertex,
+      fragmentShader: dotFragment,
+      side: DoubleSide,
+      ...lightBlending,
+    });
+    return {
+      severity,
+      symbols: false,
+      older: true,
+      anchors,
+      parts: [{ mesh: this.mesh(spotGeometry, dot, anchors.length, 2), kind: 'dot' }],
+      materials: [dot],
     };
   }
 
@@ -431,6 +483,7 @@ export class PillarField {
     return {
       severity,
       symbols: true,
+      older: false,
       anchors,
       parts: [
         { mesh: this.mesh(spotGeometry, spot, anchors.length, 2), kind: 'spot' },
@@ -536,6 +589,14 @@ export class PillarField {
           }
           const reach = radius / HIT_RADIUS;
           this.hits.get(anchor.cluster.id)?.scale.set(reach, lift + radius, reach);
+          return;
+        }
+        if (level.older) {
+          scale.setScalar(width * OLDER_DOT);
+          matrix.compose(anchor.position, anchor.turn, scale);
+          level.parts[0]!.mesh.setMatrixAt(index, matrix);
+          const reach = width * HIT_WIDENING;
+          this.hits.get(anchor.cluster.id)?.scale.set(reach, width * OLDER_HIT_HEIGHT, reach);
           return;
         }
         const height = pillarHeight(level.severity) * heightZoom * selected;

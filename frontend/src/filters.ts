@@ -51,6 +51,16 @@ export function windowOf(state: FilterState, now: number): { from: number; to: n
   return { from: to - RANGES[state.range] * HOUR, to };
 }
 
+/** News older than this, before the window's end, is drawn as a small dot when the window is
+ * longer (owner, 19 Nov 2026: what is new stands tall; the default window shows no dots). */
+export const RECENT_MARKER_HOURS = 72;
+
+/** The moment news markers turn into small dots (ms since 1970), or null for none. */
+export function recentFrom(state: FilterState, now: number): number | null {
+  if (RANGES[state.range] <= RECENT_MARKER_HOURS) return null;
+  return windowOf(state, now).to - RECENT_MARKER_HOURS * HOUR;
+}
+
 function placeMatches(event: GlobeEvent, place: string[]): boolean {
   if (place.length === 0) return true;
   const geo = event.geo;

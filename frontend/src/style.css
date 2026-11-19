@@ -1066,6 +1066,19 @@ html.app body {
   background: radial-gradient(var(--dot-color), transparent 70%);
 }
 
+/* Older news: a small still dot (shown only for windows longer than 3 days). */
+.legend-dot {
+  justify-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(#fff 0 20%, var(--dot-color) 45%, transparent 75%);
+}
+
+body:not(.long-window) .legend-older {
+  display: none;
+}
+
 .legend-pillar.pulsing::before {
   animation: pillar-pulse var(--pulse) ease-in-out infinite;
 }
@@ -1644,6 +1657,11 @@ html.text-large {
 .cluster-badge.is-hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Near the globe's edge or on top of another badge (globe.ts, declutter); the marker stays. */
+.cluster-badge.is-crowded {
+  visibility: hidden;
 }
 
 .card-back {

@@ -103,11 +103,22 @@ function severityRows(): HTMLUListElement {
 }
 
 function markerRows(): HTMLUListElement {
+  // Shown only for windows longer than 3 days (by CSS, body.long-window; filters.ts, recentFrom).
+  const older = row(olderDot(SAMPLE_COLOR), 'Older news', 'a small dot after 3 days');
+  older.className = 'legend-older';
   return rows([
     row(pillar(16, 3, SAMPLE_COLOR), 'News', 'pillar of light'),
+    older,
     row(symbolBadge('EQ'), 'Natural disaster', 'symbol shows its type'),
     row(span('legend-count', '3'), 'Group', 'events close together'),
   ]);
+}
+
+/** A small still dot, like older news on the globe. */
+function olderDot(color: string): HTMLSpanElement {
+  const node = span('legend-dot');
+  node.style.setProperty('--dot-color', color);
+  return node;
 }
 
 /** Every symbol by name, on request: the disasters' (News map) or the categories' (Geography

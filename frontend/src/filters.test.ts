@@ -5,6 +5,7 @@ import {
   fromQuery,
   isDefault,
   matches,
+  recentFrom,
   toQuery,
   windowOf,
   withPageState,
@@ -112,6 +113,20 @@ describe('windowOf', () => {
     const state = defaultFilters();
     state.end = NOW + 3_600_000;
     expect(windowOf(state, NOW).to).toBe(NOW);
+  });
+});
+
+describe('recentFrom (older news as small dots)', () => {
+  it('has no cut for windows of 3 days or less', () => {
+    for (const range of ['6h', '24h', '3d'] as const) {
+      expect(recentFrom({ ...defaultFilters(), range }, NOW)).toBeNull();
+    }
+  });
+
+  it('cuts 3 days before the end of a longer window, also one moved back in time', () => {
+    expect(recentFrom({ ...defaultFilters(), range: '14d' }, NOW)).toBe(NOW - 72 * 3_600_000);
+    const end = NOW - 48 * 3_600_000;
+    expect(recentFrom({ ...defaultFilters(), range: '7d', end }, NOW)).toBe(end - 72 * 3_600_000);
   });
 });
 

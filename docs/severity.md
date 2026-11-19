@@ -83,6 +83,12 @@ How many outlets cover a story is shown as **coverage**, separately. It never ra
 - The Geography map and the Atlas draw no markers: on Geography the country colours (below) show the news, and tapping a country lists it.
 - The legend sums up each level in a few words (`LEVEL_MEANING` in `frontend/src/ui/legend.ts`) and the About page in a table (`frontend/about/index.html`). Any change to a rule must change those too. Its marker samples are grey, so colour only ever means severity.
 
+### Older news (since 1.14.0)
+
+With a time window longer than 3 days (7 or 14 days), news older than the **last 3 days of the window** is drawn as a **small still dot** in its severity colour: no pillar, no pulse, no rings. Higher severity is still a slightly bigger dot, and the dot opens its card like a pillar. The 3 days count back from the window's end, so moving the window back in time moves the line with it. A group is a dot only when all its events are older; a report that stays current (WHO, `until`) counts as new while it is current. Natural disasters keep their symbols at every age. With 6 hours, 24 hours or 3 days (the default), nothing is a dot.
+
+Why (owner, 19 Nov 2026): what is new should stand out, and hundreds of overlapping glowing pillars made the 14-day view slow (33 frames a second on a test PC, about 140 with dots). Code: `recentFrom` in `frontend/src/filters.ts`, `isOlder` in `frontend/src/clusters.ts`, the dots in `frontend/src/globe/markers.ts`.
+
 ### Markers that stand too close
 
 Zoomed right in, where no grouping happens, markers are laid out like pins on a map, **newest first**, so that none is closer than about 60 screen pixels to another and each can be tapped:
@@ -97,6 +103,8 @@ Markers keep about the same size on screen at every zoom, and below altitude 1 p
 ### Groups of events
 
 Where pillars would crowd (closer than 4°, 2° or 1° on screen depending on zoom; zoomed right in only for piles too big to fan out, above), they merge into one pillar (or one symbol: natural disasters and news are grouped separately, so a group is always one or the other). It takes the **highest severity among its events** and stands at that event's place, with a badge showing how many events it holds. Grouping never changes any event's own severity. Code: `frontend/src/clusters.ts`.
+
+Badges never sit on top of each other (since 1.14.0): newer groups claim their place first, then bigger ones; a badge that would overlap one already shown, or that sits near the globe's edge, is hidden until zooming in makes room. Its marker stays and can still be clicked (`declutter` in `frontend/src/globe/globe.ts`).
 
 ### Geography view: country colours
 
