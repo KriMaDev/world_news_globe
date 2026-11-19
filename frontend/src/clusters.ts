@@ -8,6 +8,7 @@
  * (pillars of light) are grouped separately, so a group is always one or the other.
  */
 
+import { RECENT_MARKER_HOURS } from './filters';
 import { isDisaster } from './globe/hazard-icons';
 import { SEVERITIES, type GlobeEvent, type Severity } from './types';
 
@@ -280,9 +281,25 @@ export function clusterOf(clusters: Cluster[], eventId: string): Cluster | undef
  * current until later, `until`), so its marker is drawn as a small dot. Never with null. */
 export function isOlder(cluster: Cluster, recentFrom: number | null): boolean {
   if (recentFrom === null) return false;
-  return cluster.events.every((event) => {
-    const published = Date.parse(event.published);
-    const until = event.until ? Date.parse(event.until) : published;
-    return Math.max(published, until) < recentFrom;
-  });
+  return cluster.events.every((event) => newsTime(event) < recentFrom);
+}
+
+/** When an event last counted as news: published, or later while a report stays current. */
+export function newsTime(event: GlobeEvent): number {
+  const published = Date.parse(event.published);
+  return Math.max(published, event.until ? Date.parse(event.until) : published);
+}
+
+/**
+ * Whole days between the end of the time window and a time (0: its last 24 hours). The window
+ * ends `RECENT_MARKER_HOURS` after `recentFrom`; older dots get smaller with every day.
+ */
+export function daysOld(time: number, recentFrom: number): number {
+  const end = recentFrom + RECENT_MARKER_HOURS * 3_600_000;
+  return Math.max(0, Math.floor((end - time) / 86_400_000));
+}
+
+/** Days old of a group's newest event (see `daysOld`). */
+export function clusterDaysOld(cluster: Cluster, recentFrom: number): number {
+  return daysOld(Math.max(...cluster.events.map(newsTime)), recentFrom);
 }

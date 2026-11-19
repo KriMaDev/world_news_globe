@@ -4,7 +4,7 @@
  * text nodes only, since every field comes from outside.
  */
 
-import type { Cluster } from '../clusters';
+import { daysOld, newsTime, type Cluster } from '../clusters';
 import { coverageHeading, sourceDetails } from '../outlets';
 import { SEVERITY_STYLES } from '../severity';
 import { categoryBasisLines } from './category-basis';
@@ -22,6 +22,9 @@ export interface EventCard {
    * button. The heading inside should have the id "event-card-title". */
   openPanel(id: string, parts: HTMLElement[], focus: boolean): void;
   close(): void;
+  /** Where the older dots begin (../filters.ts, recentFrom), so a card can say why its event
+   * is a dot. */
+  setRecentFrom(cut: number | null): void;
   readonly openId: string | null;
 }
 
@@ -154,8 +157,20 @@ export function eventRows(
   return list;
 }
 
+/** Why an event is a dot on the globe (null: it is not): older than the window's last 3 days. */
+export function olderAge(event: GlobeEvent, recentFrom: number | null): string | null {
+  const time = newsTime(event);
+  if (recentFrom === null || time >= recentFrom) return null;
+  const days = daysOld(time, recentFrom);
+  return (
+    `Shown as a dot: ${days} days old, older than the last 3 days of the chosen time. ` +
+    'The older the news, the smaller the dot.'
+  );
+}
+
 export function createEventCard(root: HTMLElement, onClose: () => void): EventCard {
   let openId: string | null = null;
+  let recentFrom: number | null = null;
   let returnFocus: HTMLElement | null = null;
 
   const close = (): void => {
@@ -227,6 +242,8 @@ export function createEventCard(root: HTMLElement, onClose: () => void): EventCa
       parts.push(
         el('p', 'card-reason', `Why ${style.label.toLowerCase()}: ${event.severity_reason}`),
       );
+    const age = olderAge(event, recentFrom);
+    if (age !== null) parts.push(el('p', 'card-reason card-age', age));
     if (event.snippet) parts.push(el('p', 'card-snippet', event.snippet));
     const noteLines = notes(event);
     if (noteLines.length) {
@@ -289,6 +306,9 @@ export function createEventCard(root: HTMLElement, onClose: () => void): EventCa
     openList,
     openPanel,
     close,
+    setRecentFrom(cut) {
+      recentFrom = cut;
+    },
     get openId() {
       return openId;
     },

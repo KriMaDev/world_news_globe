@@ -104,7 +104,7 @@ function severityRows(): HTMLUListElement {
 
 function markerRows(): HTMLUListElement {
   // Shown only for windows longer than 3 days (by CSS, body.long-window; filters.ts, recentFrom).
-  const older = row(olderDot(SAMPLE_COLOR), 'Older news', 'a small dot after 3 days');
+  const older = row(olderDot(SAMPLE_COLOR), 'Older news', 'a dot after 3 days, smaller each day');
   older.className = 'legend-older';
   return rows([
     row(pillar(16, 3, SAMPLE_COLOR), 'News', 'pillar of light'),

@@ -70,7 +70,10 @@ test('the line moves with the window: 3 days before its end', async ({ page }) =
   await expect(page.locator('#globe')).toHaveAttribute('data-older', '1');
 });
 
-test('an older dot still opens its card', async ({ page, isMobile }) => {
+test('an older dot says its age on hover and opens its card, which says why it is a dot', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(isMobile, 'Finding the marker needs a mouse; phones tap the same markers');
   test.setTimeout(120_000);
   const events = [
@@ -110,10 +113,31 @@ test('an older dot still opens its card', async ({ page, isMobile }) => {
     }
   }
   expect(spot).not.toBeNull();
+  await expect(page.locator('.float-tooltip-kap')).toContainText('8 days old');
   await page.mouse.down();
   await page.waitForTimeout(150);
   await page.mouse.up();
   await expect(page.locator('#event-card-title')).toHaveText('Made-up older headline');
+  await expect(page.locator('.card-age')).toHaveText(
+    'Shown as a dot: 8 days old, older than the last 3 days of the chosen time. ' +
+      'The older the news, the smaller the dot.',
+  );
+});
+
+test("a card says why its story is a dot; a recent story's card does not", async ({ page }) => {
+  const events = [
+    syntheticEvent('fresh', 10, 10, { ...TESTLAND, ...at(5), title: 'Made-up new' }),
+    syntheticEvent('aged', -10, 50, { ...TESTLAND, ...at(5 * 24 + 2), title: 'Made-up aged' }),
+  ];
+  await openGlobe(page, '/?range=14d&list=1', { events });
+  await page.locator('#news-panel [data-event-id="aged"]').click();
+  await expect(page.locator('#event-card-title')).toHaveText('Made-up aged');
+  await expect(page.locator('.card-age')).toContainText('Shown as a dot: 5 days old');
+
+  await page.locator('#event-card .card-back').click();
+  await page.locator('#news-panel [data-event-id="fresh"]').click();
+  await expect(page.locator('#event-card-title')).toHaveText('Made-up new');
+  await expect(page.locator('.card-age')).toHaveCount(0);
 });
 
 test('count badges never sit on top of each other', async ({ page }) => {

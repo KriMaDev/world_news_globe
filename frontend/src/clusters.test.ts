@@ -3,7 +3,9 @@ import {
   angularDistance,
   clusterDegrees,
   clusterEvents,
+  clusterDaysOld,
   clusterOf,
+  daysOld,
   isOlder,
   fanOut,
   markersUnder,
@@ -262,5 +264,21 @@ describe('isOlder', () => {
       until: '2026-11-15T00:00:00Z',
     };
     expect(isOlder(group(who), cut)).toBe(false);
+  });
+
+  it('counts whole days from the end of the window (3 days after the cut)', () => {
+    const end = cut + 3 * 86_400_000;
+    expect(daysOld(end - 1, cut)).toBe(0);
+    expect(daysOld(cut - 1, cut)).toBe(3);
+    expect(daysOld(end - 13.5 * 86_400_000, cut)).toBe(13);
+    expect(daysOld(end + 1, cut)).toBe(0);
+  });
+
+  it("measures a group's age by its newest event", () => {
+    const pair = group(
+      event('a', 0, 0, 'low', '2026-11-01T00:00:00Z'),
+      event('b', 0, 0, 'low', '2026-11-08T12:00:00Z'),
+    );
+    expect(clusterDaysOld(pair, cut)).toBe(4);
   });
 });

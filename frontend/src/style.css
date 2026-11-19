@@ -768,6 +768,10 @@ body:not(.no-globe) .event-list-button:focus {
   letter-spacing: 0.02em;
 }
 
+.card-reason + .card-reason {
+  margin-top: -0.6rem;
+}
+
 .card-notes {
   display: grid;
   gap: 0.25rem;
@@ -1066,13 +1070,18 @@ html.app body {
   background: radial-gradient(var(--dot-color), transparent 70%);
 }
 
-/* Older news: a small still dot (shown only for windows longer than 3 days). */
+/* Older news: a still dot with a dark edge (shown only for windows longer than 3 days). */
 .legend-dot {
   justify-self: center;
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: radial-gradient(#fff 0 20%, var(--dot-color) 45%, transparent 75%);
+  background: radial-gradient(
+    #fff 0 15%,
+    var(--dot-color) 35% 58%,
+    #05070a 66% 88%,
+    transparent 100%
+  );
 }
 
 body:not(.long-window) .legend-older {

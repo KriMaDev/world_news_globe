@@ -5,8 +5,9 @@
  * a thin stem of light above the same glowing spot, so the two read differently at a glance.
  * Both grow and pulse faster with severity (see ../severity.ts); globe.gl's ring layer adds
  * outward rings for high and critical events (see globe.ts). News older than the last 3 days of a
- * longer window is only a small still dot (owner, 19 Nov 2026): overlapping glow made 14 days
- * slow, and what is new should stand out (../clusters.ts, isOlder).
+ * longer window is only a still dot (owner, 19 Nov 2026): overlapping glow made 14 days
+ * slow, and what is new should stand out (../clusters.ts, isOlder). The dot is smaller for
+ * every day of age and has a dark edge, so a blue one still shows on a blue coast line.
  *
  * Drawn with instancing: all pillars (or symbols) of one severity share one mesh per part, so a
  * thousand events cost a couple of dozen draw calls. Clicking and hovering use a separate invisible column per
@@ -41,7 +42,7 @@ import {
   Vector3,
 } from 'three';
 import { SEVERITY_STYLES } from '../severity';
-import { isOlder, type Cluster } from '../clusters';
+import { clusterDaysOld, isOlder, type Cluster } from '../clusters';
 import { SEVERITIES, type Severity } from '../types';
 import { ATLAS_COLUMNS, ATLAS_ROWS, ICON_FILL, drawAtlas, iconIndex } from './hazard-icons';
 
@@ -83,10 +84,20 @@ const SYMBOL_LIFT = 1.2;
  * spot (small and soft, so it doesn't read as a second marker beside the disc). */
 const STEM_WIDTH = 0.42;
 const SYMBOL_SPOT = 0.5;
-/** An older news dot is this much of a pillar's ground spot, and its click column this many
- * world units tall per unit of width (short, but still easy to hit). */
-const OLDER_DOT = 0.45;
+/** An older news dot is this much of a pillar's ground spot: the full size 3 days old, one
+ * step smaller for each further day, the smallest from 13 days (owner, 19 Nov 2026: one size
+ * per day). Its click column is this many world units tall per unit of width. */
+const NEWEST_DOT = 1;
+const OLDEST_DOT = 0.6;
+const FIRST_DOT_DAY = 3;
+const LAST_DOT_DAY = 13;
 const OLDER_HIT_HEIGHT = 1.5;
+
+/** An older dot's size (share of a pillar's ground spot) for whole days of age. */
+export function olderDotScale(days: number): number {
+  const step = Math.min(LAST_DOT_DAY, Math.max(FIRST_DOT_DAY, days)) - FIRST_DOT_DAY;
+  return NEWEST_DOT - ((NEWEST_DOT - OLDEST_DOT) * step) / (LAST_DOT_DAY - FIRST_DOT_DAY);
+}
 
 /** Pillar height in world units for a severity: grows faster than the size. */
 export function pillarHeight(severity: Severity): number {
@@ -177,7 +188,9 @@ const spotFragment = /* glsl */ `
   }
 `;
 
-// An older news dot: still (no pulse, no halo), so it is cheap to paint.
+// An older news dot: still (no pulse, no halo), so it is cheap to paint. Painted over what
+// lies beneath instead of adding light to it: a solid disc in the severity colour with a
+// bright centre, inside a dark edge that covers coast lines and borders.
 const dotFragment = /* glsl */ `
   uniform vec3 color;
 
@@ -186,9 +199,11 @@ const dotFragment = /* glsl */ `
   void main() {
     float d = length(vUv - 0.5) * 2.0;
     if (d > 1.0) discard;
-    float glow = pow(1.0 - d, 1.6);
-    vec3 light = color * glow * 1.2 + vec3(1.0) * pow(max(1.0 - d * 2.5, 0.0), 2.0) * 0.6;
-    gl_FragColor = vec4(light, clamp(max(light.r, max(light.g, light.b)), 0.0, 1.0));
+    float fill = 1.0 - smoothstep(0.52, 0.6, d);
+    float edge = 1.0 - smoothstep(0.78, 1.0, d);
+    vec3 centre = vec3(1.0) * pow(max(1.0 - d * 3.0, 0.0), 1.5) * 0.55;
+    vec3 light = mix(vec3(0.02, 0.025, 0.035), color + centre, fill);
+    gl_FragColor = vec4(light, max(fill, edge * 0.85));
   }
 `;
 
@@ -309,6 +324,8 @@ interface Anchor {
   widen: number;
   /** The disaster symbol's atlas index (./hazard-icons.ts), or null for a pillar. */
   icon: number | null;
+  /** An older dot's size for its age (`olderDotScale`); 1 for everything else. */
+  dot: number;
 }
 
 type PartKind = 'beam' | 'spot' | 'stem' | 'disc' | 'dot';
@@ -367,10 +384,14 @@ export class PillarField {
             turn: new Quaternion().setFromUnitVectors(UP, position.clone().normalize()),
             widen: groupWidening(cluster.events.length),
             icon: iconIndex(cluster.lead),
+            dot: 1,
           };
         });
       const news = all.filter((a) => a.icon === null);
       const older = news.filter((a) => isOlder(a.cluster, recentFrom));
+      for (const anchor of older) {
+        anchor.dot = olderDotScale(clusterDaysOld(anchor.cluster, recentFrom!));
+      }
       const pillars = news.filter((a) => !older.includes(a));
       const symbols = all.filter((a) => a.icon !== null);
       if (pillars.length) this.levels.push(this.pillarLevel(severity, pillars));
@@ -434,7 +455,9 @@ export class PillarField {
       vertexShader: spotVertex,
       fragmentShader: dotFragment,
       side: DoubleSide,
-      ...lightBlending,
+      blending: NormalBlending,
+      transparent: true,
+      depthWrite: false,
     });
     return {
       severity,
@@ -592,7 +615,7 @@ export class PillarField {
           return;
         }
         if (level.older) {
-          scale.setScalar(width * OLDER_DOT);
+          scale.setScalar(width * anchor.dot);
           matrix.compose(anchor.position, anchor.turn, scale);
           level.parts[0]!.mesh.setMatrixAt(index, matrix);
           const reach = width * HIT_WIDENING;

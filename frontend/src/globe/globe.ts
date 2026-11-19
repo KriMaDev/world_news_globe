@@ -26,6 +26,7 @@ import {
   clusterEvents,
   clusterOf,
   fanOut,
+  clusterDaysOld,
   isOlder,
   markersUnder,
   type Cluster,
@@ -191,21 +192,32 @@ function ringColor(cluster: Cluster): (t: number) => string {
   return (t) => `rgba(${r}, ${g}, ${b}, ${((1 - t) * 0.75).toFixed(3)})`;
 }
 
-/** A hover label built from text nodes only: titles come from outside sources. */
-function labelFor(cluster: Cluster): HTMLElement {
+/** A hover label built from text nodes only: titles come from outside sources. An older
+ * dot says its age, so its small size explains itself. */
+function labelFor(cluster: Cluster, recentFrom: number | null): HTMLElement {
+  const age = isOlder(cluster, recentFrom)
+    ? `${clusterDaysOld(cluster, recentFrom!)} days old`
+    : null;
   const label = document.createElement('div');
   label.className = 'globe-label';
   const title = document.createElement('strong');
   const meta = document.createElement('span');
   if (cluster.events.length > 1) {
     title.textContent = `${cluster.events.length} events near ${cluster.lead.place}`;
-    meta.textContent = `Most severe: ${SEVERITY_STYLES[cluster.severity].label} · click to list them`;
+    meta.textContent = [
+      `Most severe: ${SEVERITY_STYLES[cluster.severity].label}`,
+      age,
+      'click to list them',
+    ]
+      .filter(Boolean)
+      .join(' · ');
   } else {
     title.textContent = cluster.lead.title;
     meta.textContent = [
       hazardLabel(cluster.lead),
       SEVERITY_STYLES[cluster.severity].label,
       cluster.lead.place,
+      age,
     ]
       .filter(Boolean)
       .join(' · ');
@@ -532,7 +544,7 @@ export async function createGlobeApp(
         globe.getCoords(cluster.lat, cluster.lng, LIGHT_ALTITUDE),
       );
     })
-    .customLayerLabel((d) => labelFor(d as Cluster))
+    .customLayerLabel((d) => labelFor(d as Cluster, recentFrom))
     .onCustomLayerClick((d) => {
       if (press.wasTap) options.onSelect(underClick(d as Cluster));
     })

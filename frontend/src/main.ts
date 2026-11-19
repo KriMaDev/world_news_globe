@@ -433,6 +433,7 @@ function applyFilters(): void {
   if (app) {
     const cut = recentFrom(filters, now);
     document.body.classList.toggle('long-window', cut !== null);
+    card.setRecentFrom(cut);
     app.setEvents(events, cut);
     if (mapView !== 'news' && geoData) app.setGeography(geoData, newsByCountry(), mapView);
     renderEventList(list, events, listHandlers);
