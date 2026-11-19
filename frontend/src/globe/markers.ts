@@ -7,7 +7,9 @@
  * outward rings for high and critical events (see globe.ts). News older than the last 3 days of a
  * longer window is only a still dot (owner, 19 Nov 2026): overlapping glow made 14 days
  * slow, and what is new should stand out (../clusters.ts, isOlder). The dot is smaller for
- * every day of age and has a dark edge, so a blue one still shows on a blue coast line.
+ * every day of age. Low-severity markers on a shore or an island, or on the night side, get a
+ * clear look (a soft disc with a faint dark edge), so their blue doesn't vanish into blue coast
+ * lines or bright city lights (owner, 19 Nov 2026; ./shore.ts).
  *
  * Drawn with instancing: all pillars (or symbols) of one severity share one mesh per part, so a
  * thousand events cost a couple of dozen draw calls. Clicking and hovering use a separate invisible column per
@@ -36,6 +38,7 @@ import {
   NoColorSpace,
   NormalBlending,
   OneFactor,
+  OneMinusSrcAlphaFactor,
   PlaneGeometry,
   Quaternion,
   ShaderMaterial,
@@ -105,6 +108,18 @@ export function pillarHeight(severity: Severity): number {
 }
 
 // Additive light on a transparent canvas: colour and alpha both add up.
+/** Premultiplied colour (the clear look): alpha 0 adds light, alpha 1 covers what's beneath. */
+const clearBlending = {
+  blending: CustomBlending,
+  blendEquation: AddEquation,
+  blendSrc: OneFactor,
+  blendDst: OneMinusSrcAlphaFactor,
+  blendSrcAlpha: OneFactor,
+  blendDstAlpha: OneMinusSrcAlphaFactor,
+  transparent: true,
+  depthWrite: false,
+} as const;
+
 const lightBlending = {
   blending: CustomBlending,
   blendEquation: AddEquation,
@@ -171,6 +186,16 @@ const spotVertex = /* glsl */ `
   }
 `;
 
+// A pillar's glowing ground spot; d is 0 at its centre and 1 at its edge.
+const spotLight = /* glsl */ `
+  vec3 spotLight(vec3 color, float d, float time, float period) {
+    float swell = period > 0.0 ? 0.5 + 0.5 * sin(6.2831853 * time / period) : 0.0;
+    float spot = pow(max(1.0 - d, 0.0), 2.4);
+    float halo = pow(max(1.0 - d, 0.0), 1.2) * (0.25 + 0.2 * swell);
+    return color * (spot * 1.3 + halo) + vec3(1.0) * pow(max(1.0 - d * 3.0, 0.0), 2.0) * 0.8;
+  }
+`;
+
 const spotFragment = /* glsl */ `
   uniform vec3 color;
   uniform float time;
@@ -178,32 +203,107 @@ const spotFragment = /* glsl */ `
 
   varying vec2 vUv;
 
+  ${spotLight}
+
   void main() {
-    float d = length(vUv - 0.5) * 2.0;
-    float swell = period > 0.0 ? 0.5 + 0.5 * sin(6.2831853 * time / period) : 0.0;
-    float spot = pow(max(1.0 - d, 0.0), 2.4);
-    float halo = pow(max(1.0 - d, 0.0), 1.2) * (0.25 + 0.2 * swell);
-    vec3 light = color * (spot * 1.3 + halo) + vec3(1.0) * pow(max(1.0 - d * 3.0, 0.0), 2.0) * 0.8;
+    vec3 light = spotLight(color, length(vUv - 0.5) * 2.0, time, period);
     gl_FragColor = vec4(light, clamp(max(light.r, max(light.g, light.b)), 0.0, 1.0));
   }
 `;
 
-// An older news dot: still (no pulse, no halo), so it is cheap to paint. Painted over what
-// lies beneath instead of adding light to it: a solid disc in the severity colour with a
-// bright centre, inside a dark edge that covers coast lines and borders.
+// An older news dot's glow: still (no pulse, no halo), so it is cheap to paint.
+const dotLight = /* glsl */ `
+  vec3 dotLight(vec3 color, float d) {
+    float glow = pow(max(1.0 - d, 0.0), 1.6);
+    return color * glow * 1.2 + vec3(1.0) * pow(max(1.0 - d * 2.5, 0.0), 2.0) * 0.6;
+  }
+`;
+
 const dotFragment = /* glsl */ `
   uniform vec3 color;
 
   varying vec2 vUv;
 
+  ${dotLight}
+
   void main() {
     float d = length(vUv - 0.5) * 2.0;
     if (d > 1.0) discard;
-    float fill = 1.0 - smoothstep(0.52, 0.6, d);
-    float edge = 1.0 - smoothstep(0.78, 1.0, d);
-    vec3 centre = vec3(1.0) * pow(max(1.0 - d * 3.0, 0.0), 1.5) * 0.55;
-    vec3 light = mix(vec3(0.02, 0.025, 0.035), color + centre, fill);
-    gl_FragColor = vec4(light, max(fill, edge * 0.85));
+    vec3 light = dotLight(color, d);
+    gl_FragColor = vec4(light, clamp(max(light.r, max(light.g, light.b)), 0.0, 1.0));
+  }
+`;
+
+// The clear look, for low severity only: on a shore or an island (aShore, ./shore.ts) or on
+// the night side, a soft disc in the severity colour inside a faint dark edge is painted over
+// what lies beneath (coast lines, city lights); elsewhere the usual glow is added as before.
+// Output is premultiplied: alpha 0 adds light, alpha 1 covers.
+const clearVertex = /* glsl */ `
+  attribute float aShore;
+  uniform vec3 sunDirection;
+  varying vec2 vUv;
+  varying float vClear;
+
+  void main() {
+    vUv = uv;
+    vec4 local = vec4(position, 1.0);
+    vec4 centre = vec4(0.0, 0.0, 0.0, 1.0);
+    #ifdef USE_INSTANCING
+      local = instanceMatrix * local;
+      centre = instanceMatrix * centre;
+    #endif
+    vec3 up = normalize((modelMatrix * centre).xyz);
+    float night = smoothstep(0.1, -0.1, dot(up, sunDirection));
+    vClear = max(aShore, night);
+    gl_Position = projectionMatrix * modelViewMatrix * local;
+  }
+`;
+
+const clearDisc = /* glsl */ `
+  vec4 clearDisc(vec3 color, float d) {
+    float fill = (1.0 - smoothstep(0.25, 0.55, d)) * 0.85;
+    float edge = (1.0 - smoothstep(0.55, 0.95, d)) * 0.4;
+    vec3 light = color * (0.9 + 0.4 * pow(max(1.0 - d * 3.0, 0.0), 1.5));
+    return vec4(light * fill, max(fill, edge));
+  }
+`;
+
+const clearDotFragment = /* glsl */ `
+  uniform vec3 color;
+
+  varying vec2 vUv;
+  varying float vClear;
+
+  ${dotLight}
+  ${clearDisc}
+
+  void main() {
+    float d = length(vUv - 0.5) * 2.0;
+    if (d > 1.0) discard;
+    vec4 disc = clearDisc(color, d);
+    float cover = disc.a * vClear;
+    gl_FragColor = vec4(disc.rgb * vClear + dotLight(color, d) * (1.0 - cover), cover);
+  }
+`;
+
+// A pillar's ground spot: the disc covers its bright middle, the halo still glows around it.
+const clearSpotFragment = /* glsl */ `
+  uniform vec3 color;
+  uniform float time;
+  uniform float period;
+
+  varying vec2 vUv;
+  varying float vClear;
+
+  ${spotLight}
+  ${clearDisc}
+
+  void main() {
+    float d = length(vUv - 0.5) * 2.0;
+    vec4 disc = clearDisc(color, d * 1.5);
+    float cover = disc.a * vClear;
+    vec3 glow = spotLight(color, d, time, period);
+    gl_FragColor = vec4(disc.rgb * vClear + glow * (1.0 - cover), cover);
   }
 `;
 
@@ -328,6 +428,13 @@ interface Anchor {
   dot: number;
 }
 
+/** What the clear look needs (see clearVertex): the shore test and the sun's direction (the
+ * day-night material's own vector, kept up to date by globe.ts). */
+export interface ClearLook {
+  nearShore(lat: number, lng: number): boolean;
+  sunDirection: Vector3;
+}
+
 type PartKind = 'beam' | 'spot' | 'stem' | 'disc' | 'dot';
 
 /** How much wider a group's pillar is than a single event's. */
@@ -354,6 +461,10 @@ const scale = new Vector3();
 export class PillarField {
   readonly group = new Group();
   private readonly levels: Level[] = [];
+  /** How many low-severity markers stand on a shore or an island (the clear look). */
+  shoreCount = 0;
+  /** Copies of shared geometries made for this field (freed with it). */
+  private readonly ownGeometries: BufferGeometry[] = [];
   private readonly hits = new Map<string, Mesh>();
   private lastZoom = -1;
   private fanLines: LineSegments | null = null;
@@ -363,11 +474,12 @@ export class PillarField {
 
   /** One pillar, symbol or dot per group (see ../clusters.ts); `coords` turns latitude and
    * longitude into a point on the globe's surface; news groups wholly older than `recentFrom`
-   * are dots (null: none). */
+   * are dots (null: none); `clear` gives low-severity markers the clear look (null: never). */
   constructor(
     clusters: Cluster[],
     coords: (lat: number, lng: number) => { x: number; y: number; z: number },
     recentFrom: number | null = null,
+    private readonly clear: ClearLook | null = null,
   ) {
     let olderCount = 0;
     this.group.name = 'pillars';
@@ -415,6 +527,39 @@ export class PillarField {
     return mesh;
   }
 
+  /** The ground spot or dot material: the clear look for low severity, else plain glow. */
+  private groundPart(
+    severity: Severity,
+    anchors: Anchor[],
+    kind: 'spot' | 'dot',
+  ): { mesh: InstancedMesh; kind: PartKind; material: ShaderMaterial } {
+    const clear = severity === 'low' ? this.clear : null;
+    if (!clear) {
+      const material = new ShaderMaterial({
+        uniforms: uniformsFor(severity, 1),
+        vertexShader: spotVertex,
+        fragmentShader: kind === 'spot' ? spotFragment : dotFragment,
+        side: DoubleSide,
+        ...lightBlending,
+      });
+      return { mesh: this.mesh(spotGeometry, material, anchors.length, 2), kind, material };
+    }
+    const material = new ShaderMaterial({
+      uniforms: { ...uniformsFor(severity, 1), sunDirection: { value: clear.sunDirection } },
+      vertexShader: clearVertex,
+      fragmentShader: kind === 'spot' ? clearSpotFragment : clearDotFragment,
+      side: DoubleSide,
+      ...clearBlending,
+    });
+    // Its own copy of the quad, carrying which markers stand on a shore.
+    const quad = spotGeometry.clone();
+    const shore = anchors.map((a) => (clear.nearShore(a.cluster.lat, a.cluster.lng) ? 1 : 0));
+    quad.setAttribute('aShore', new InstancedBufferAttribute(new Float32Array(shore), 1));
+    this.shoreCount += shore.filter(Boolean).length;
+    this.ownGeometries.push(quad);
+    return { mesh: this.mesh(quad, material, anchors.length, 2), kind, material };
+  }
+
   private pillarLevel(severity: Severity, anchors: Anchor[]): Level {
     const core = new ShaderMaterial({
       uniforms: uniformsFor(severity, 2.0),
@@ -428,44 +573,30 @@ export class PillarField {
       fragmentShader: beamFragment,
       ...lightBlending,
     });
-    const spot = new ShaderMaterial({
-      uniforms: uniformsFor(severity, 1),
-      vertexShader: spotVertex,
-      fragmentShader: spotFragment,
-      side: DoubleSide,
-      ...lightBlending,
-    });
+    const spot = this.groundPart(severity, anchors, 'spot');
     return {
       severity,
       symbols: false,
       older: false,
       anchors,
       parts: [
-        { mesh: this.mesh(spotGeometry, spot, anchors.length, 2), kind: 'spot' },
+        { mesh: spot.mesh, kind: 'spot' },
         { mesh: this.mesh(glowGeometry, glow, anchors.length, 2), kind: 'beam' },
         { mesh: this.mesh(coreGeometry, core, anchors.length, 2), kind: 'beam' },
       ],
-      materials: [core, glow, spot],
+      materials: [core, glow, spot.material],
     };
   }
 
   private dotLevel(severity: Severity, anchors: Anchor[]): Level {
-    const dot = new ShaderMaterial({
-      uniforms: uniformsFor(severity, 1),
-      vertexShader: spotVertex,
-      fragmentShader: dotFragment,
-      side: DoubleSide,
-      blending: NormalBlending,
-      transparent: true,
-      depthWrite: false,
-    });
+    const dot = this.groundPart(severity, anchors, 'dot');
     return {
       severity,
       symbols: false,
       older: true,
       anchors,
-      parts: [{ mesh: this.mesh(spotGeometry, dot, anchors.length, 2), kind: 'dot' }],
-      materials: [dot],
+      parts: [{ mesh: dot.mesh, kind: 'dot' }],
+      materials: [dot.material],
     };
   }
 
@@ -560,6 +691,7 @@ export class PillarField {
       }
       for (const material of level.materials) material.dispose();
     }
+    for (const geometry of this.ownGeometries) geometry.dispose();
     this.group.removeFromParent();
   }
 

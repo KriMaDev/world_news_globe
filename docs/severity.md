@@ -85,9 +85,15 @@ How many outlets cover a story is shown as **coverage**, separately. It never ra
 
 ### Older news (since 1.14.0)
 
-With a time window longer than 3 days (7 or 14 days), news older than the **last 3 days of the window** is drawn as a **still dot** in its severity colour with a dark edge (so a blue dot still shows on a blue coast line): no pillar, no pulse, no rings. The dot is **one step smaller for every day of age**: as big as a pillar's ground spot at 3 days old, 60 % of it from 13 days (a group counts by its newest event; `olderDotScale` in `markers.ts`). Higher severity is still a slightly bigger dot, and the dot opens its card like a pillar. Its card and hover label say how many days old it is and why it is a dot. The 3 days count back from the window's end, so moving the window back in time moves the line with it. A group is a dot only when all its events are older; a report that stays current (WHO, `until`) counts as new while it is current. Natural disasters keep their symbols at every age. With 6 hours, 24 hours or 3 days (the default), nothing is a dot.
+With a time window longer than 3 days (7 or 14 days), news older than the **last 3 days of the window** is drawn as a **still dot** in its severity colour: no pillar, no pulse, no rings. The dot is **one step smaller for every day of age**: as big as a pillar's ground spot at 3 days old, 60 % of it from 13 days (a group counts by its newest event; `olderDotScale` in `markers.ts`). Higher severity is still a slightly bigger dot, and the dot opens its card like a pillar. Its card and hover label say how many days old it is and why it is a dot. The 3 days count back from the window's end, so moving the window back in time moves the line with it. A group is a dot only when all its events are older; a report that stays current (WHO, `until`) counts as new while it is current. Natural disasters keep their symbols at every age. With 6 hours, 24 hours or 3 days (the default), nothing is a dot.
 
 Why (owner, 19 Nov 2026): what is new should stand out, and a dot's size should show its age at a glance, and hundreds of overlapping glowing pillars made the 14-day view slow (33 frames a second on a test PC, about 140 with dots). Code: `recentFrom` in `frontend/src/filters.ts`, `isOlder` in `frontend/src/clusters.ts`, the dots in `frontend/src/globe/markers.ts`.
+
+### Low severity on shores, islands and at night (since 1.14.0)
+
+A **low**-severity marker (a pillar's ground spot or an older dot) that stands on a shore or an island, or on the night side of the globe, is drawn with a **clear look**: a soft disc in its colour inside a faint dark edge, painted over what lies beneath instead of adding light to it. Elsewhere it glows as usual, and the other levels never change. A place is on a shore when a coastline passes within about 45 to 65 km (`frontend/src/globe/shore.ts`, from the same Natural Earth coastlines the globe draws); the night side follows the real sun, as the globe's own day and night do.
+
+Why (owner, 19 Nov 2026): low is blue, and a blue glow vanished on the blue coast lines and in the bright lights of coastal and island cities. Only where that happens, and only for low, so the clear look never reads as more serious.
 
 ### Markers that stand too close
 

@@ -53,10 +53,11 @@ import { createAtmosphere } from './atmosphere';
 import { createDayNightMaterial, setSunDirection } from './daynight';
 import { DetailLayer } from './detail';
 import { createLines, createWaterLines, parseLines } from './lines';
-import { PillarField } from './markers';
+import { PillarField, type ClearLook } from './markers';
 import { PressTracker } from './press';
 import { ResolutionGuard } from './resolution';
 import { findShapeGroups, ShapeLayer, type Rgba } from './shapes';
+import { ShoreIndex } from './shore';
 import { createStars } from './stars';
 import { sunPosition } from './sun';
 
@@ -531,6 +532,13 @@ export async function createGlobeApp(
         : SHARED_CLICK_PX.mouse,
     );
   let pillars = new PillarField([], pillarCoords);
+  // Low-severity markers on shores, islands and the night side are drawn clearer
+  // (./markers.ts); the shores are known once the coastlines have loaded.
+  let shore: ShoreIndex | null = null;
+  const clearLook: ClearLook = {
+    nearShore: (lat, lng) => shore?.near(lat, lng) ?? false,
+    sunDirection: sunVector,
+  };
 
   globe
     .backgroundColor(BACKGROUND)
@@ -783,8 +791,9 @@ export async function createGlobeApp(
     clusters = fanOut(clusterEvents(events, degrees), fanStep === null ? 0 : fanSpacing(fanStep));
     container.dataset.fanned = String(clusters.filter((c) => c.anchor).length);
     pillars.dispose();
-    pillars = new PillarField(clusters, pillarCoords, recentFrom);
+    pillars = new PillarField(clusters, pillarCoords, recentFrom, clearLook);
     container.dataset.older = String(pillars.olderCount);
+    container.dataset.shore = shore ? String(pillars.shoreCount) : '';
     showMarkers();
     globe.scene().add(pillars.group);
     globe.customLayerData(mapView === 'news' ? clusters : []).ringsData(ringClusters());
@@ -817,8 +826,10 @@ export async function createGlobeApp(
     )
     .then((buffer) => {
       const coords = (lat: number, lng: number) => globe.getCoords(lat, lng, LINE_ALTITUDE);
-      for (const lines of createLines(parseLines(buffer), coords, sunVector))
-        globe.scene().add(lines);
+      const data = parseLines(buffer);
+      for (const lines of createLines(data, coords, sunVector)) globe.scene().add(lines);
+      shore = new ShoreIndex(data.coastlines);
+      if (events.length > 0) regroup();
     })
     .catch((error: unknown) => console.warn('Coastlines and borders unavailable:', error));
 

@@ -6,9 +6,11 @@ Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the midd
 
 ## 1.14.0 · 2026-11-19
 
-- Less crowding with long time windows. With 7 or 14 days, news older than the window's last 3 days is a still dot in its severity colour, without a pillar, pulse or rings, and one step smaller for every day of age. A dark edge keeps it visible on coast lines. It still opens its card, and the card and hover label say how many days old it is and why it is a dot. The newest 3 days stand tall as before, and the default 3-day window is unchanged. The legend explains the dot. On a test PC, 14 days now draws about 140 frames a second instead of 33.
+- Less crowding with long time windows. With 7 or 14 days, news older than the window's last 3 days is a still dot in its severity colour, without a pillar, pulse or rings, and one step smaller for every day of age. It still opens its card, and the card and hover label say how many days old it is and why it is a dot. The newest 3 days stand tall as before, and the default 3-day window is unchanged. The legend explains the dot. On a test PC, 14 days now draws about 140 frames a second instead of 33.
+- Low-severity markers on a shore or an island, or on the night side, are drawn as a soft disc with a faint dark edge, so their blue no longer vanishes into blue coast lines or bright city lights.
 - Count badges no longer pile up: where two would overlap, the newer and bigger group's badge shows and the other waits until zooming in makes room; badges near the globe's edge are hidden. Their markers can still be clicked.
 - On any device that can't keep up (under about 25 frames a second), the globe's picture may now get slightly softer (down to 75 % sharpness) instead of stuttering. Before, only high-density screens did this.
+- The legend no longer shows a sideways scrollbar in some browsers.
 
 ## 1.13.0 · 2026-11-19
 

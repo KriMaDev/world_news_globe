@@ -187,3 +187,19 @@ test('count badges never sit on top of each other', async ({ page }) => {
     }
   }
 });
+
+test('low-severity markers on a shore or an island get the clear look; others do not', async ({
+  page,
+}) => {
+  const low = { severity: 'low' };
+  const events = [
+    syntheticEvent('low-coast', 38.72, -9.14, low), // a coastal city
+    syntheticEvent('low-island', 28.1, -15.43, { ...low, ...at(5 * 24) }), // an island, older
+    syntheticEvent('low-inland', 39.74, -104.99, low), // far from any sea
+    syntheticEvent('moderate-coast', -33.87, 151.21), // on a coast, but not low
+  ];
+  await openGlobe(page, '/?range=14d', { events });
+  // Known once the coastlines have loaded.
+  await expect(page.locator('#globe')).toHaveAttribute('data-shore', '2', { timeout: 30_000 });
+  await expect(page.locator('#globe')).toHaveAttribute('data-older', '1');
+});

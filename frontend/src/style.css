@@ -995,6 +995,8 @@ html.app body {
   max-width: 100%;
   max-height: calc(100dvh - 5rem);
   overflow-y: auto;
+  /* The fold arrow sits in the corner, 1 px past the scroll area: no sideways scrollbar. */
+  overflow-x: hidden;
   padding: 0.8rem 0.95rem 0.85rem;
   font-size: 0.85rem;
 }
