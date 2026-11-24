@@ -77,18 +77,18 @@ export function matchesExceptTime(event: GlobeEvent, state: FilterState): boolea
   );
 }
 
-/** Whether an event is current at some moment of [from, to]: published by `to`, and published
- * (or still current, `until`) at `from` or later. */
-export function currentIn(event: GlobeEvent, from: number, to: number): boolean {
+/** Whether an event was published within [from, to]. Only its publication time counts, for
+ * every source: "6 hours" shows only what was published in the last 6 hours (owner, 24 Nov
+ * 2026; before 1.14.1, WHO reports and ongoing outages also showed in later windows). */
+export function publishedIn(event: GlobeEvent, from: number, to: number): boolean {
   const published = Date.parse(event.published);
-  const until = event.until ? Date.parse(event.until) : published;
-  return published <= to && Math.max(published, until) >= from;
+  return published >= from && published <= to;
 }
 
 /** Whether an event passes every filter. */
 export function matches(event: GlobeEvent, state: FilterState, now: number): boolean {
   const { from, to } = windowOf(state, now);
-  return currentIn(event, from, to) && matchesExceptTime(event, state);
+  return publishedIn(event, from, to) && matchesExceptTime(event, state);
 }
 
 export function isDefault(state: FilterState): boolean {

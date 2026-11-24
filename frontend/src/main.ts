@@ -17,7 +17,7 @@ import { startAnalytics } from './analytics';
 import { compareBySeverity, parseEvents } from './events';
 import type { Cluster } from './clusters';
 import {
-  currentIn,
+  publishedIn,
   defaultFilters,
   fromQuery,
   isDefault,
@@ -336,7 +336,7 @@ const placePicker = createPlacePicker(
     filters = { ...filters, place: path };
     applyFilters();
     const { from, to } = windowOf(filters, Date.now());
-    const inWindow = allEvents.filter((e) => currentIn(e, from, to));
+    const inWindow = allEvents.filter((e) => publishedIn(e, from, to));
     const center = placeCenter(inWindow, path);
     if (center) app?.flyOver(center.lat, center.lng, placeAltitude(path.length));
   },
@@ -412,7 +412,7 @@ function applyFilters(): void {
   const now = Date.now();
   const { from, to } = windowOf(filters, now);
   ensureHistory(from);
-  const inWindow = allEvents.filter((e) => currentIn(e, from, to));
+  const inWindow = allEvents.filter((e) => publishedIn(e, from, to));
   events = inWindow.filter((e) => matchesExceptTime(e, filters)).sort(compareBySeverity);
   panel.render(filters, chipCounts(inWindow), activeFilters(filters));
   timeline.update(filters, now);
@@ -687,7 +687,7 @@ function chooseCountry(iso2: string): void {
   const { from, to } = windowOf(filters, Date.now());
   const match = allEvents.find(
     (e) =>
-      e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && currentIn(e, from, to),
+      e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && publishedIn(e, from, to),
   );
   const here = mapView === 'geo' ? events.filter((e) => e.geo?.country_code === iso2) : [];
   const news = countryNews(here, filters.categories).get(iso2);

@@ -73,9 +73,7 @@ function notes(event: GlobeEvent): string[] {
     lines.push('GDACS alerts are automated estimates. Check official national authorities.');
   }
   if (event.feed === 'who') {
-    lines.push(
-      'Official report from the World Health Organization, shown for 14 days after publication.',
-    );
+    lines.push('Official report from the World Health Organization.');
   }
   if (event.feed === 'radar') {
     lines.push(

@@ -9,8 +9,8 @@ Rules (docs/sources.md, "Cloudflare Radar"):
 - One event per country the outage lists, at country level, on Natural Earth's label point.
 - The title is built from Radar's own fields only ("Internet outage in Cuba: power outage
   (nationwide)"); Radar's description is the card's snippet, credited.
-- It starts at Radar's start date and stays current until its end date, or for as long as
-  Radar lists it as ongoing.
+- It is placed in time at Radar's start date: like every event, it counts only then in the
+  page's time windows, even while the outage goes on.
 - Severity by reach and cause (severity.radar_severity).
 """
 
@@ -89,9 +89,7 @@ def parse(
         cause = str(outage.get("outageCause") or "")
         kind = str(outage.get("outageType") or "")
         start = parse_iso(str(annotation["startDate"]))
-        end = annotation.get("endDate")
-        until = parse_iso(str(end)) if end else now
-        ongoing += 0 if end else 1
+        ongoing += 0 if annotation.get("endDate") else 1
         codes = [c for c in _countries(annotation) if c in points and c in gazetteer.countries]
         if not codes:
             unplaced += 1
@@ -120,7 +118,6 @@ def parse(
                     sources=[Source(SOURCE, HOMEPAGE)],
                     geo=geo,
                     location_method="source",
-                    until=until,
                 )
             )
     stats = {"outages": len(annotations), "ongoing": ongoing, "not_placed": unplaced}

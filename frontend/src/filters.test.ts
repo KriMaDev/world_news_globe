@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  currentIn,
   defaultFilters,
   fromQuery,
   isDefault,
   matches,
+  publishedIn,
   recentFrom,
   toQuery,
   windowOf,
@@ -182,26 +182,23 @@ describe('the web address', () => {
   });
 });
 
-describe('reports that stay current (until)', () => {
+describe('time windows count only the publication time', () => {
   const HOUR = 3_600_000;
-  const report = event({
-    published: new Date(NOW - 10 * 24 * HOUR).toISOString(),
-    until: new Date(NOW + 4 * 24 * HOUR).toISOString(),
+  const daysAgo = (days: number) => new Date(NOW - days * 24 * HOUR).toISOString();
+
+  it('shows an event only in windows that include its publication time', () => {
+    const report = event({ published: daysAgo(10) });
+    expect(publishedIn(report, NOW - 72 * HOUR, NOW)).toBe(false);
+    expect(publishedIn(report, NOW - 14 * 24 * HOUR, NOW - 11 * 24 * HOUR)).toBe(false);
+    expect(matches(report, { ...defaultFilters(), range: '7d' }, NOW)).toBe(false);
+    expect(matches(report, { ...defaultFilters(), range: '14d' }, NOW)).toBe(true);
   });
 
-  it('counts a report in every window while it is current', () => {
-    expect(currentIn(report, NOW - 6 * HOUR, NOW)).toBe(true);
-    expect(matches(report, defaultFilters(), NOW)).toBe(true);
-  });
-
-  it('never counts it in a window that ends before it was published', () => {
-    expect(currentIn(report, NOW - 14 * 24 * HOUR, NOW - 11 * 24 * HOUR)).toBe(false);
-  });
-
-  it('counts an event without until only at its publication time', () => {
-    const plain = event({ published: new Date(NOW - 10 * 24 * HOUR).toISOString() });
-    expect(currentIn(plain, NOW - 72 * HOUR, NOW)).toBe(false);
-    expect(matches(plain, { ...defaultFilters(), range: '14d' }, NOW)).toBe(true);
+  it('keeps "6 hours" to the last 6 hours, also for a report that once stayed current', () => {
+    const old = { ...event({ published: daysAgo(11) }), until: daysAgo(-3) };
+    const fresh = event({ published: new Date(NOW - 5 * HOUR).toISOString() });
+    expect(matches(old, { ...defaultFilters(), range: '6h' }, NOW)).toBe(false);
+    expect(matches(fresh, { ...defaultFilters(), range: '6h' }, NOW)).toBe(true);
   });
 
   it('offers a 14-day window', () => {

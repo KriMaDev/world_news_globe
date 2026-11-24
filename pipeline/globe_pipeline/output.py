@@ -1,8 +1,7 @@
 """Reading the previous run's data and writing the published files.
 
 Published (docs/architecture.md):
-- events.json: the last 72 hours (the page's first load stays small), plus reports still
-  current then (an event's `until`);
+- events.json: the last 72 hours (the page's first load stays small);
 - days/YYYY-MM-DD.json: every event of one UTC day, for the 14-day timeline;
 - days/index.json: the days available, with counts;
 - feeds.json: each source's health, and GDELT's cursor;
@@ -108,9 +107,9 @@ def load_previous(location: str | None) -> Previous:
 
 
 def within_window(events: list[Event], now: datetime, window: timedelta = WINDOW) -> list[Event]:
-    """Events current within `window` before `now` (14 days by default): published in it, or
-    still current in it (`until`)."""
-    return [event for event in events if now - event.active_until <= window]
+    """Events published within `window` before `now` (14 days by default). Only the
+    publication time counts, for every source (owner, 24 Nov 2026)."""
+    return [event for event in events if now - event.published <= window]
 
 
 def order(events: list[Event]) -> list[Event]:

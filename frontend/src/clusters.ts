@@ -277,17 +277,16 @@ export function clusterOf(clusters: Cluster[], eventId: string): Cluster | undef
   return clusters.find((cluster) => cluster.events.some((event) => event.id === eventId));
 }
 
-/** Whether every event of a group is older than `recentFrom` (counting reports that stay
- * current until later, `until`), so its marker is drawn as a small dot. Never with null. */
+/** Whether every event of a group was published before `recentFrom`, so its marker is drawn
+ * as a small dot. Never with null. */
 export function isOlder(cluster: Cluster, recentFrom: number | null): boolean {
   if (recentFrom === null) return false;
   return cluster.events.every((event) => newsTime(event) < recentFrom);
 }
 
-/** When an event last counted as news: published, or later while a report stays current. */
+/** When an event was published, the only time that counts for its age and time windows. */
 export function newsTime(event: GlobeEvent): number {
-  const published = Date.parse(event.published);
-  return Math.max(published, event.until ? Date.parse(event.until) : published);
+  return Date.parse(event.published);
 }
 
 /**

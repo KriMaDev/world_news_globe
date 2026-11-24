@@ -5,8 +5,9 @@ for one number, the deaths it counts (severity), and is never stored or shown. W
 CC BY-NC-SA 3.0 IGO (non-commercial use with credit; docs/sources.md).
 
 Rules (docs/sources.md, "WHO Disease Outbreak News"):
-- A report stays current for 14 days after WHO publishes it (`until`), or until WHO publishes
-  a newer report with the same title: then only the newest is kept.
+- Reports from the last 14 days are read (the timeline's reach). Like every event, a report
+  counts only at its publication time in the page's time windows. Of reports with the same
+  title, only the newest is kept.
 - It is placed in every country its title names after the disease ("Ebola disease …,
   Democratic Republic of the Congo, Kenya and Nigeria" gives three events with the same link),
   at country level, on Natural Earth's label point for that country. A title that names only a
@@ -38,7 +39,7 @@ URL = (
     "?$top=40&$orderby=PublicationDate%20desc&$select=Title,PublicationDate,UrlName,Summary"
 )
 REPORT_URL = "https://www.who.int/emergencies/disease-outbreak-news/item/{slug}"
-#: How long a report stays current after WHO publishes it.
+#: How far back reports are read: the timeline's 14 days.
 CURRENT_FOR = timedelta(days=14)
 
 #: WHO's formal names for countries whose short name in the gazetteer differs, by ISO code.
@@ -146,7 +147,6 @@ def parse(
                     sources=[Source(SOURCE, REPORT_URL.format(slug=quote(slug)))],
                     geo=geo,
                     location_method="source",
-                    until=published + CURRENT_FOR,
                 )
             )
     stats = {"reports": len(reports), "current": len(newest), "not_placed": unplaced}

@@ -258,12 +258,12 @@ describe('isOlder', () => {
     expect(isOlder(mixed, cut)).toBe(false);
   });
 
-  it('stays recent while a report is still current (until)', () => {
+  it('ages a report by its publication time only, even with an old `until` field', () => {
     const who = {
       ...event('w', 0, 0, 'high', '2026-11-01T00:00:00Z'),
       until: '2026-11-15T00:00:00Z',
     };
-    expect(isOlder(group(who), cut)).toBe(false);
+    expect(isOlder(group(who), cut)).toBe(true);
   });
 
   it('counts whole days from the end of the window (3 days after the cut)', () => {

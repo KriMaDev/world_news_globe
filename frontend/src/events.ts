@@ -66,7 +66,6 @@ function hasValidExtras(value: Record<string, unknown>): boolean {
     feed,
     hazard,
     first_seen,
-    until,
     coverage,
     geo,
     location_method,
@@ -79,7 +78,6 @@ function hasValidExtras(value: Record<string, unknown>): boolean {
     (hazard === undefined || isNullableText(hazard)) &&
     (first_seen === undefined ||
       (typeof first_seen === 'string' && !Number.isNaN(Date.parse(first_seen)))) &&
-    (until === undefined || (typeof until === 'string' && !Number.isNaN(Date.parse(until)))) &&
     (coverage === undefined || (Number.isInteger(coverage) && (coverage as number) >= 1)) &&
     (geo === undefined || isGeo(geo)) &&
     (location_method === undefined ||

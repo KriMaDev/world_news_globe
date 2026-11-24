@@ -4,6 +4,10 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
+## 1.14.1 · 2026-11-24
+
+- Time filters now mean exactly what they say: "6 h" shows only what was published in the last 6 hours, and the same for 24 hours, 3, 7 and 14 days. Before, WHO outbreak reports stayed in every time window for 14 days after publication, and Cloudflare Radar outages until they ended, so "6 h" could show a report from 11 days ago. They now count only at their publication date, like all other news. The WHO card and the About and Sources pages no longer say "shown for 14 days".
+
 ## 1.14.0 · 2026-11-19
 
 - Less crowding with long time windows. With 7 or 14 days, news older than the window's last 3 days is a still dot in its severity colour, without a pillar, pulse or rings, and one step smaller for every day of age. It still opens its card, and the card and hover label say how many days old it is and why it is a dot. The newest 3 days stand tall as before, and the default 3-day window is unchanged. The legend explains the dot. On a test PC, 14 days now draws about 140 frames a second instead of 33.
