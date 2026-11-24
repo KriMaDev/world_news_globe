@@ -20,7 +20,8 @@ test('the switch changes the map and the address, and back again', async ({ page
 
   await geo.click();
   await expect(geo).toHaveAttribute('aria-pressed', 'true');
-  await expect(page).toHaveURL(/view=geo/);
+  // Geography is the default map, so the address no longer names a map.
+  await expect(page).not.toHaveURL(/view=/);
   await expect(shownLabels(page).first()).toBeAttached({ timeout: 30_000 });
 
   await page.locator('#view-atlas').click();
@@ -28,7 +29,7 @@ test('the switch changes the map and the address, and back again', async ({ page
   await expect(page.locator('#view-atlas')).toHaveAttribute('aria-pressed', 'true');
 
   await page.locator('#view-news').click();
-  await expect(page).not.toHaveURL(/view=/);
+  await expect(page).toHaveURL(/view=news/);
   await expect(page.locator('.map-label')).toHaveCount(0);
   expect(problems).toEqual([]);
 });

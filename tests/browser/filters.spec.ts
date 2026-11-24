@@ -21,7 +21,8 @@ test('everything is on at first, and the address stays clean', async ({ page }) 
   await expect(chip(page, 'categories', 'Sport')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#filter-toggle .toggle-count')).toHaveText('');
   await expect(summary(page)).toBeHidden();
-  expect(new URL(page.url()).search).toBe('');
+  // Only the map (these tests use the News map): no filter in the address.
+  expect(new URL(page.url()).search).toBe('?view=news');
 });
 
 test('turning a category off narrows the events, and survives a reload', async ({ page }) => {
@@ -42,7 +43,8 @@ test('Clear filters brings everything back', async ({ page }) => {
 
   await page.locator('[data-filter=clear]').click();
   await expect(summary(page)).toBeHidden();
-  expect(new URL(page.url()).search).toBe('');
+  // Only the map (these tests use the News map): no filter in the address.
+  expect(new URL(page.url()).search).toBe('?view=news');
 });
 
 test('All off leaves no events and says so in the address', async ({ page }) => {
