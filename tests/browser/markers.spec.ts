@@ -33,7 +33,7 @@ function pile() {
 
 /** Opens the globe on `events`, flies straight over Testland and zooms all the way in. */
 async function zoomIntoTestland(page: Page, events: ReturnType<typeof pile>): Promise<void> {
-  await openGlobe(page, '/', { events });
+  await openGlobe(page, '/?view=news', { events });
   if ((await page.locator('#rotate-toggle').getAttribute('aria-pressed')) === 'true') {
     await page.locator('#rotate-toggle').click();
   }
@@ -121,7 +121,7 @@ test('a click on a marker with no other near it opens its own card', async ({ pa
     syntheticEvent('near-a', 19.6, -72.2, { ...TESTLAND, title: 'Made-up headline number 1' }),
     syntheticEvent('near-b', 19.6, -70.9, { ...TESTLAND, title: 'Made-up headline number 2' }),
   ];
-  await openGlobe(page, '/', { events });
+  await openGlobe(page, '/?view=news', { events });
   if ((await page.locator('#rotate-toggle').getAttribute('aria-pressed')) === 'true') {
     await page.locator('#rotate-toggle').click();
   }

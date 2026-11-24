@@ -31,6 +31,9 @@ export interface FilterState {
   end: number | null;
   /** e.g. ["Asia", "Southern Asia", "IN"]; empty for the whole world. */
   place: string[];
+  /** "Ongoing events": also count reports that are still current (`until`) in a window they
+   * overlap. Off by default: only the publication time counts (owner, 24 Nov 2026). */
+  ongoing: boolean;
 }
 
 export function defaultFilters(): FilterState {
@@ -40,6 +43,7 @@ export function defaultFilters(): FilterState {
     range: DEFAULT_RANGE,
     end: null,
     place: [],
+    ongoing: false,
   };
 }
 
@@ -77,18 +81,32 @@ export function matchesExceptTime(event: GlobeEvent, state: FilterState): boolea
   );
 }
 
-/** Whether an event was published within [from, to]. Only its publication time counts, for
- * every source: "6 hours" shows only what was published in the last 6 hours (owner, 24 Nov
- * 2026; before 1.14.1, WHO reports and ongoing outages also showed in later windows). */
-export function publishedIn(event: GlobeEvent, from: number, to: number): boolean {
+/** Whether an event is current at some moment of [from, to]: published by `to`, and published
+ * (or still current, `until`) at `from` or later. Without `until`, only the publication time
+ * counts. */
+export function currentIn(event: GlobeEvent, from: number, to: number): boolean {
   const published = Date.parse(event.published);
-  return published >= from && published <= to;
+  const until = event.until ? Date.parse(event.until) : published;
+  return published <= to && Math.max(published, until) >= from;
+}
+
+/**
+ * An event as the time filter sees it. With "Ongoing events" off (the default) its `until` is
+ * left out, so it counts only at its publication time, everywhere: "6 hours" shows only what
+ * was published in the last 6 hours (owner, 24 Nov 2026). With it on, a WHO report counts for
+ * 14 days and an outage until it ends, as before 1.15.0.
+ */
+export function timed(event: GlobeEvent, ongoing: boolean): GlobeEvent {
+  if (ongoing || event.until === undefined) return event;
+  const copy = { ...event };
+  delete copy.until;
+  return copy;
 }
 
 /** Whether an event passes every filter. */
 export function matches(event: GlobeEvent, state: FilterState, now: number): boolean {
   const { from, to } = windowOf(state, now);
-  return publishedIn(event, from, to) && matchesExceptTime(event, state);
+  return currentIn(timed(event, state.ongoing), from, to) && matchesExceptTime(event, state);
 }
 
 export function isDefault(state: FilterState): boolean {
@@ -97,7 +115,8 @@ export function isDefault(state: FilterState): boolean {
     state.severities.size === SEVERITIES.length &&
     state.range === DEFAULT_RANGE &&
     state.end === null &&
-    state.place.length === 0
+    state.place.length === 0 &&
+    !state.ongoing
   );
 }
 
@@ -113,24 +132,28 @@ export function toQuery(state: FilterState): string {
   if (state.range !== DEFAULT_RANGE) params.set('range', state.range);
   if (state.end !== null) params.set('end', new Date(state.end).toISOString().slice(0, 13) + 'Z');
   if (state.place.length) params.set('place', state.place.join('/'));
+  if (state.ongoing) params.set('ongoing', '1');
   const query = params.toString();
   return query ? `?${query}` : '';
 }
 
-/** Adds the page's own switches to a filter query ("?cat=war" → "?cat=war&view=geo&list=1"). */
+/** The map the site opens on (owner, 24 Nov 2026: Geography is the more convenient start). */
+export const DEFAULT_VIEW: MapView = 'geo';
+
+/** Adds the page's own switches to a filter query ("?cat=war" → "?cat=war&view=news&list=1"). */
 export function withPageState(query: string, page: { view: MapView; list: boolean }): string {
   const extras = [
-    page.view === 'news' ? '' : `view=${page.view}`,
+    page.view === DEFAULT_VIEW ? '' : `view=${page.view}`,
     page.list ? 'list=1' : '',
   ].filter(Boolean);
   if (extras.length === 0) return query;
   return `${query ? `${query}&` : '?'}${extras.join('&')}`;
 }
 
-/** Which map the address asks for; anything unknown is the news map. */
+/** Which map the address asks for; none or anything unknown is the default (Geography). */
 export function viewFromQuery(search: string): MapView {
   const view = new URLSearchParams(search).get('view');
-  return view === 'geo' || view === 'atlas' ? view : 'news';
+  return view === 'news' || view === 'geo' || view === 'atlas' ? view : DEFAULT_VIEW;
 }
 
 /** A list from the address; "none" means none chosen, and a missing list or one with no valid
@@ -157,5 +180,6 @@ export function fromQuery(search: string): FilterState {
   }
   const place = params.get('place');
   if (place) state.place = place.split('/').filter(Boolean).slice(0, PLACE_LEVELS.length);
+  state.ongoing = params.get('ongoing') === '1';
   return state;
 }

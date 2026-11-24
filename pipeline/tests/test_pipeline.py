@@ -12,7 +12,7 @@ import pytest
 from globe_pipeline import cluster as cluster_module
 from globe_pipeline import run as run_module
 from globe_pipeline.cluster import cluster, headline_words, similarity
-from globe_pipeline.models import Event, Geo, Source, iso
+from globe_pipeline.models import Event, Geo, Source
 from globe_pipeline.outlets import OUTLETS, outlet_slug
 from globe_pipeline.output import load_previous, within_window, write
 from globe_pipeline.severity import Severity
@@ -95,19 +95,12 @@ def test_window_keeps_fourteen_days(now) -> None:
     assert [e.id for e in within_window([fresh, last_week, old], now)] == ["f", "w"]
 
 
-def test_window_counts_only_the_publication_time(now) -> None:
-    """A report from five days ago is outside a 72-hour window, whatever its source."""
+def test_window_counts_a_report_while_it_is_current(now) -> None:
+    """A report published before the window still counts while its `until` is inside it."""
     report = news("r", "Report from five days ago", "dw", now, 5 * 24 * 60)
+    current = replace(report, until=now + timedelta(days=9))
     assert within_window([report], now, timedelta(hours=72)) == []
-
-
-def test_old_data_with_until_still_loads(now) -> None:
-    """Data written before 1.14.1 carries `until`: it is read and then ignored."""
-    data = news("r", "Report from five days ago", "dw", now, 5 * 24 * 60).to_json()
-    data["until"] = iso(now + timedelta(days=9))
-    event = Event.from_json(data)
-    assert "until" not in event.to_json()
-    assert within_window([event], now, timedelta(hours=72)) == []
+    assert [e.id for e in within_window([current], now, timedelta(hours=72))] == ["r"]
 
 
 def test_outlet_balance_keeps_most_severe(now) -> None:

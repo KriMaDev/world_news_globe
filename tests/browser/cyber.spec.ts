@@ -23,7 +23,7 @@ function world() {
 const listed = (page: Page, id: string) => page.locator(`#event-list [data-event-id="${id}"]`);
 
 test('a Cloudflare Radar outage card says where it comes from', async ({ page }) => {
-  await openGlobe(page, '/', { events: world() });
+  await openGlobe(page, '/?view=news', { events: world() });
   await openEvent(page, 'radar-tl');
   const card = page.locator('#event-card');
   await expect(card.locator('.card-kind')).toContainText('Data feed · Cloudflare Radar');
@@ -35,7 +35,7 @@ test('a Cloudflare Radar outage card says where it comes from', async ({ page })
 });
 
 test('the Cyber & outages filter turns outages off and on', async ({ page }) => {
-  await openGlobe(page, '/', { events: world() });
+  await openGlobe(page, '/?view=news', { events: world() });
   await expect(listed(page, 'radar-tl')).toHaveCount(1);
   await page.locator('#filter-toggle').click();
   const chip = page.locator('[data-filter=categories] .chip', { hasText: 'Cyber & outages' });

@@ -1,7 +1,9 @@
-/** The 14-day timeline, and time windows that count only the publication time. Made-up events
- * only. */
+/** The 14-day timeline, time windows that count only the publication time, and the "Ongoing
+ * events" tick box. Made-up events only. */
 import { expect, test, type Page } from '@playwright/test';
 import { ago, knownWorld, openEvent, openGlobe, syntheticEvent } from './fixtures';
+
+const NOTE = 'Also shows events that began before this time and are still going on';
 
 const DAY = 24 * 60;
 
@@ -24,8 +26,8 @@ function whoReport(id: string, lat: number, lng: number, minutesAgo: number) {
 function world() {
   return [
     ...knownWorld(),
-    // A made-up WHO report from 10 days ago, with the `until` field that data from before
-    // 1.14.1 still carries: it must count only at its publication time.
+    // A made-up WHO report from 10 days ago, still current for 4 more days (`until`): by default
+    // it counts only at its publication time, with "Ongoing events" ticked in every window.
     {
       ...whoReport('who-old', -2, 23.5, 10 * DAY),
       until: new Date(Date.now() + 4 * DAY * 60_000).toISOString(),
@@ -49,7 +51,7 @@ async function chooseTime(page: Page, label: string, range: string) {
 }
 
 test('a time window shows only what was published in it, WHO reports too', async ({ page }) => {
-  await openGlobe(page, '/', { events: world() });
+  await openGlobe(page, '/?view=news', { events: world() });
   // The default 3-day window: the new report only.
   await expect(listed(page, 'who-new')).toHaveCount(1);
   await expect(listed(page, 'who-old')).toHaveCount(0);
@@ -66,7 +68,7 @@ test('a time window shows only what was published in it, WHO reports too', async
 });
 
 test("a WHO report's card names WHO and promises no extra days", async ({ page }) => {
-  await openGlobe(page, '/', { events: world() });
+  await openGlobe(page, '/?view=news', { events: world() });
   await openEvent(page, 'who-new');
   const card = page.locator('#event-card');
   await expect(card.locator('.card-kind')).toContainText('Data feed · WHO');
@@ -79,9 +81,59 @@ test('the 14-day window shows older events and loads the older days', async ({ p
   page.on('request', (request) => {
     if (request.url().includes('/data/days/')) dayFiles.push(request.url());
   });
-  await openGlobe(page, '/', { events: world() });
+  await openGlobe(page, '/?view=news', { events: world() });
   await page.locator('#filter-toggle').click();
   await chooseTime(page, '14 days', '14d');
   await expect(listed(page, 'old-news')).toHaveCount(1);
   expect(dayFiles.some((url) => url.endsWith('/data/days/index.json'))).toBe(true);
+});
+
+test('"Ongoing events" is off by default, and ticked it shows reports still current', async ({
+  page,
+}) => {
+  await openGlobe(page, '/?view=news', { events: world() });
+  await page.locator('#filter-toggle').click();
+  const box = page.locator('#ongoing-toggle');
+  const note = page.locator('#ongoing-note');
+  await expect(box).not.toBeChecked();
+  await expect(note).toBeHidden();
+  await chooseTime(page, '6 h', '6h');
+  await expect(listed(page, 'who-old')).toHaveCount(0);
+
+  // Ticked: the explanation shows, the address keeps it, and the old report is back.
+  await page.getByText('Ongoing events', { exact: true }).click();
+  await expect(box).toBeChecked();
+  await expect(note).toBeVisible();
+  await expect(note).toContainText(NOTE);
+  await expect(note).toContainText('News reports have no end date');
+  await expect(page).toHaveURL(/ongoing=1/);
+  await expect(listed(page, 'who-old')).toHaveCount(1);
+  // News without an end date still counts only when published.
+  await expect(listed(page, 'old-news')).toHaveCount(0);
+  await openEvent(page, 'who-old');
+  await expect(page.locator('#event-card .card-ongoing')).toContainText(
+    'Ongoing event: a WHO report counts as current for 14 days after publication',
+  );
+  await page.keyboard.press('Escape');
+
+  // Unticked again: back to the publication time only.
+  await page.locator('#filter-toggle').click();
+  await box.uncheck();
+  await expect(note).toBeHidden();
+  await expect(page).not.toHaveURL(/ongoing=1/);
+  await expect(listed(page, 'who-old')).toHaveCount(0);
+});
+
+test('a link with "Ongoing events" ticked opens with it ticked', async ({ page }) => {
+  await openGlobe(page, '/?ongoing=1&view=news', { events: world() });
+  await expect(listed(page, 'who-old')).toHaveCount(1);
+  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#ongoing-toggle')).toBeChecked();
+  await expect(page.locator('#ongoing-note')).toBeVisible();
+});
+
+test("an ongoing report's card says nothing about it while the box is off", async ({ page }) => {
+  await openGlobe(page, '/?range=14d&view=news', { events: world() });
+  await openEvent(page, 'who-old');
+  await expect(page.locator('#event-card .card-ongoing')).toHaveCount(0);
 });

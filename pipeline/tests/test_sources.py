@@ -426,7 +426,8 @@ def test_who_parse_places_rates_and_keeps_reports_14_days(gazetteer, now) -> Non
     )
     assert (ebola.lat, ebola.lng, ebola.geo.precision) == (36.0, 138.0, "country")
     assert ebola.sources[0].url.endswith("/disease-outbreak-news/item/2026-DON1")
-    assert "until" not in ebola.to_json()
+    assert ebola.until == ebola.published + timedelta(days=14)
+    assert ebola.to_json()["until"]
     measles = next(e for e in events if e.id.endswith(":BG"))
     assert measles.severity.label == "moderate"
 
@@ -494,10 +495,11 @@ def test_radar_parse_places_titles_and_rates(gazetteer, now) -> None:
         "data-feed",
     )
     assert shutdown.snippet == "Made-up description of a test outage."
+    assert shutdown.until == now - timedelta(days=1)
     assert by_id["radar:2:YE"].severity.label == "moderate"
     assert by_id["radar:2:YE"].place == "Yemen (Test region)"
     ongoing = by_id["radar:3:RU"]
-    assert ongoing.severity.label == "low"
+    assert (ongoing.severity.label, ongoing.until) == ("low", now)
 
 
 def test_radar_missing_or_failed_answer_is_an_error(gazetteer, now, tmp_path) -> None:

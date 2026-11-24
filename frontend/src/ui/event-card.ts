@@ -155,6 +155,19 @@ export function eventRows(
   return list;
 }
 
+/** Why an event shows outside its publication time: it is still current (`until`), which the
+ * card sees only while "Ongoing events" is ticked (`timed` in filters.ts). Null otherwise. */
+export function ongoingLine(event: GlobeEvent): string | null {
+  if (!event.until) return null;
+  const how =
+    event.feed === 'who'
+      ? 'a WHO report counts as current for 14 days after publication'
+      : event.feed === 'radar'
+        ? 'an outage counts as current from its start until it ends'
+        : 'this event counts as current until it ends';
+  return `Ongoing event: ${how}, so it also shows in later time windows while "Ongoing events" is ticked in Filters.`;
+}
+
 /** Why an event is a dot on the globe (null: it is not): older than the window's last 3 days. */
 export function olderAge(event: GlobeEvent, recentFrom: number | null): string | null {
   const time = newsTime(event);
@@ -242,6 +255,8 @@ export function createEventCard(root: HTMLElement, onClose: () => void): EventCa
       );
     const age = olderAge(event, recentFrom);
     if (age !== null) parts.push(el('p', 'card-reason card-age', age));
+    const ongoing = ongoingLine(event);
+    if (ongoing !== null) parts.push(el('p', 'card-reason card-ongoing', ongoing));
     if (event.snippet) parts.push(el('p', 'card-snippet', event.snippet));
     const noteLines = notes(event);
     if (noteLines.length) {

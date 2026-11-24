@@ -46,7 +46,7 @@ for (const [name, width, height] of TOUCH_SCREENS) {
     test.skip(({ isMobile }) => !isMobile, 'Touch screens only');
 
     test('everything can be tapped, and panels fit', async ({ page }) => {
-      await openGlobe(page, '/', { events: knownWorld() });
+      await openGlobe(page, '/?view=news', { events: knownWorld() });
       await expectTappable(page, [
         '.topbar-actions button',
         '.view-option',
@@ -94,7 +94,7 @@ for (const [width, height] of [
     test.skip(({ isMobile }) => isMobile, 'Screens without touch only');
 
     test('panels fit between the top row and the footer', async ({ page }) => {
-      await openGlobe(page, '/', { events: knownWorld() });
+      await openGlobe(page, '/?view=news', { events: knownWorld() });
       await page.locator('#filter-toggle').click();
       await expect(page.locator('#filter-panel')).toBeVisible();
       await expectPanelFits(page, '#filter-panel');

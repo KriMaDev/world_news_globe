@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  currentIn,
   defaultFilters,
   fromQuery,
   isDefault,
   matches,
-  publishedIn,
   recentFrom,
+  timed,
   toQuery,
   windowOf,
   withPageState,
@@ -17,21 +18,22 @@ const NOW = Date.parse('2026-11-08T12:00:00Z');
 
 describe('withPageState', () => {
   it.each([
-    ['', 'news', false, ''],
-    ['?cat=war', 'news', false, '?cat=war'],
-    ['', 'geo', false, '?view=geo'],
+    ['', 'geo', false, ''],
+    ['?cat=war', 'geo', false, '?cat=war'],
+    ['', 'news', false, '?view=news'],
     ['', 'atlas', false, '?view=atlas'],
-    ['', 'news', true, '?list=1'],
-    ['?cat=war', 'geo', true, '?cat=war&view=geo&list=1'],
+    ['', 'geo', true, '?list=1'],
+    ['?cat=war', 'news', true, '?cat=war&view=news&list=1'],
   ] as const)('%j view=%s list=%s gives %j', (query, view, list, expected) => {
     expect(withPageState(query, { view, list })).toBe(expected);
   });
 
   it.each([
-    ['', 'news'],
+    ['', 'geo'],
+    ['?view=news', 'news'],
     ['?view=geo', 'geo'],
     ['?view=atlas', 'atlas'],
-    ['?view=nonsense', 'news'],
+    ['?view=nonsense', 'geo'],
   ])('%j opens the %s map', (search, view) => {
     expect(viewFromQuery(search)).toBe(view);
   });
@@ -182,23 +184,51 @@ describe('the web address', () => {
   });
 });
 
-describe('time windows count only the publication time', () => {
+describe('time windows and "Ongoing events"', () => {
   const HOUR = 3_600_000;
   const daysAgo = (days: number) => new Date(NOW - days * 24 * HOUR).toISOString();
+  // A WHO report from 11 days ago, current for 3 more days.
+  const report = event({ published: daysAgo(11), until: daysAgo(-3) });
+  const plain = event({ published: daysAgo(10) });
 
-  it('shows an event only in windows that include its publication time', () => {
-    const report = event({ published: daysAgo(10) });
-    expect(publishedIn(report, NOW - 72 * HOUR, NOW)).toBe(false);
-    expect(publishedIn(report, NOW - 14 * 24 * HOUR, NOW - 11 * 24 * HOUR)).toBe(false);
+  it('is off by default: "6 hours" shows only the last 6 hours, ongoing reports too', () => {
+    const fresh = event({ published: new Date(NOW - 5 * HOUR).toISOString() });
+    expect(defaultFilters().ongoing).toBe(false);
+    expect(matches(report, { ...defaultFilters(), range: '6h' }, NOW)).toBe(false);
     expect(matches(report, { ...defaultFilters(), range: '7d' }, NOW)).toBe(false);
     expect(matches(report, { ...defaultFilters(), range: '14d' }, NOW)).toBe(true);
+    expect(matches(fresh, { ...defaultFilters(), range: '6h' }, NOW)).toBe(true);
   });
 
-  it('keeps "6 hours" to the last 6 hours, also for a report that once stayed current', () => {
-    const old = { ...event({ published: daysAgo(11) }), until: daysAgo(-3) };
-    const fresh = event({ published: new Date(NOW - 5 * HOUR).toISOString() });
-    expect(matches(old, { ...defaultFilters(), range: '6h' }, NOW)).toBe(false);
-    expect(matches(fresh, { ...defaultFilters(), range: '6h' }, NOW)).toBe(true);
+  it('ticked, counts a report in every window while it is current', () => {
+    const ongoing = { ...defaultFilters(), ongoing: true };
+    expect(matches(report, { ...ongoing, range: '6h' }, NOW)).toBe(true);
+    expect(currentIn(report, NOW - 6 * HOUR, NOW)).toBe(true);
+  });
+
+  it('ticked, never counts a report in a window that ends before it was published', () => {
+    expect(currentIn(report, NOW - 14 * 24 * HOUR, NOW - 12 * 24 * HOUR)).toBe(false);
+  });
+
+  it('ticked or not, counts news without an end date only at its publication time', () => {
+    const ongoing = { ...defaultFilters(), ongoing: true };
+    expect(matches(plain, ongoing, NOW)).toBe(false);
+    expect(matches(plain, { ...ongoing, range: '14d' }, NOW)).toBe(true);
+  });
+
+  it('drops `until` only while off, and leaves events without one as they are', () => {
+    expect(timed(report, false).until).toBeUndefined();
+    expect(timed(report, true)).toBe(report);
+    expect(timed(plain, false)).toBe(plain);
+    expect(report.until).toBeDefined();
+  });
+
+  it('is kept in the address, and counts as a change from the default', () => {
+    const state = { ...defaultFilters(), ongoing: true };
+    expect(toQuery(state)).toBe('?ongoing=1');
+    expect(fromQuery('?ongoing=1').ongoing).toBe(true);
+    expect(fromQuery('').ongoing).toBe(false);
+    expect(isDefault(state)).toBe(false);
   });
 
   it('offers a 14-day window', () => {

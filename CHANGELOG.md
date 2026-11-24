@@ -4,9 +4,12 @@ Every release of World News Globe, newest first. The footer shows the version an
 
 Numbers are MAJOR.MINOR.PATCH: a new feature or a visible change raises the middle number, fixes, texts and maintenance the last. 1.0.0 is the first version with real events (milestone 3); 0.1.0 and 0.2.0 are milestones 1 and 2. Changes to tests, CI and notes alone are listed with the release they shipped in.
 
-## 1.14.1 · 2026-11-24
+## 1.15.0 · 2026-11-24
 
-- Time filters now mean exactly what they say: "6 h" shows only what was published in the last 6 hours, and the same for 24 hours, 3, 7 and 14 days. Before, WHO outbreak reports stayed in every time window for 14 days after publication, and Cloudflare Radar outages until they ended, so "6 h" could show a report from 11 days ago. They now count only at their publication date, like all other news. The WHO card and the About and Sources pages no longer say "shown for 14 days".
+- The globe now opens on the Geography map, with each country coloured by its news. The News map is one click away, and links to it keep working with `view=news` in the address.
+- Time filters now mean exactly what they say: "6 h" shows only what was published in the last 6 hours, and the same for 24 hours, 3, 7 and 14 days. Before, WHO outbreak reports stayed in every time window for 14 days after publication, and Cloudflare Radar outages until they ended, so "6 h" could show a report from 11 days ago. The plain news page for search engines follows the same rule.
+- A new tick box in Filters, under Time: "Ongoing events", off by default. Ticked, it brings back the reports that are still going on (WHO reports for 14 days, internet outages until they end) in every time window, with a short explanation below it and a line on each such event's card. News reports have no end date, so they still count only when published.
+- The category symbols next to country names on the Geography map are smaller: as tall as the name's capital letters, on every device and at both text sizes.
 
 ## 1.14.0 · 2026-11-19
 

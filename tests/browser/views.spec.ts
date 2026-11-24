@@ -21,8 +21,25 @@ const openCountry = async (page: Page, name: string): Promise<void> => {
   await expect(page.locator('#event-card .card-title')).toHaveText(name);
 };
 
-test('the News map keeps its markers', async ({ page }) => {
+test('the site opens on the Geography map, and News is one click away', async ({ page }) => {
   await openGlobe(page, '/', { events: knownWorld() });
+  await expect(page.locator('#view-geo')).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  await expect(page.locator('#view-news')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.map-label.kind-country').first()).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.cluster-badge')).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+
+  await page.locator('#view-news').click();
+  await expect(page).toHaveURL(/view=news/);
+  await expect(page.locator('.cluster-badge').first()).toBeAttached();
+  await page.locator('#view-geo').click();
+  await expect(page).not.toHaveURL(/view=/);
+});
+
+test('the News map keeps its markers', async ({ page }) => {
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await expect(page.locator('.cluster-badge').first()).toBeAttached();
   await expect(page.locator('.map-label')).toHaveCount(0);
 });
@@ -81,7 +98,7 @@ test('the Atlas has no news at all, and countries still open their card', async 
 });
 
 test('switching to the Atlas closes what belongs to the news', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await page.locator('#news-toggle').click();
   await expect(page.locator('#news-panel')).toBeVisible();
   await page.locator('#view-atlas').click();
@@ -89,7 +106,7 @@ test('switching to the Atlas closes what belongs to the news', async ({ page }) 
   await expect(page).not.toHaveURL(/list=1/);
 });
 
-for (const path of ['/', '/?view=geo', '/?view=atlas']) {
+for (const path of ['/?view=news', '/', '/?view=atlas']) {
   test(`the top row fits on the smallest phone at ${path}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await openGlobe(page, path, { events: knownWorld() });
@@ -150,7 +167,7 @@ test('zoomed in, news at the same place fans out and each can be opened', async 
   const events = ['one', 'two', 'three'].map((name) =>
     syntheticEvent(name, 43.7, -79.4, { ...same, title: `Stacked headline ${name}` }),
   );
-  await openGlobe(page, '/', { events });
+  await openGlobe(page, '/?view=news', { events });
   await page.locator('#rotate-toggle').click();
   await openEvent(page, 'one');
   await page.keyboard.press('Escape');

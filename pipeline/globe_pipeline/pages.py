@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .models import Event, iso
-from .output import RECENT, FeedStatus, order, within_window
+from .output import RECENT, FeedStatus, order, published_within
 
 SITE = "https://globe.krimadev.com"
 #: The site's pages for the sitemap; those marked True change at every run.
@@ -75,8 +75,9 @@ def _anchor(name: str) -> str:
 
 
 def _globe_link(path: Iterable[str]) -> str:
-    """The globe filtered to a place, e.g. /?place=Asia/Western%20Asia/YE."""
-    return f"/?place={quote('/'.join(path), safe='/')}"
+    """The News map filtered to a place, e.g. /?place=Asia/Western%20Asia/YE&view=news (the
+    globe opens on the Geography map by default since 1.15.0)."""
+    return f"/?place={quote('/'.join(path), safe='/')}&view=news"
 
 
 def _source(event: Event, index: int) -> str:
@@ -173,7 +174,7 @@ def _structured_data(now: datetime, count: int) -> str:
 
 def render_news(events: list[Event], feeds: list[FeedStatus], now: datetime) -> str:
     """The whole /news/ page for the events of the last 72 hours."""
-    recent = within_window(events, now, RECENT)
+    recent = published_within(events, now, RECENT)
     contents, sections = _sections(recent)
     hours = int(RECENT.total_seconds() // 3600)
     body = sections or "<p>No events in this time window.</p>"

@@ -68,10 +68,19 @@ def test_every_source_listed_and_state_affiliation_labelled(now) -> None:
     assert page.count('class="state"') == 1
 
 
+def test_lists_only_what_was_published_in_the_last_72_hours(now) -> None:
+    """A report still current (`until`) but published five days ago is left out."""
+    old = event(now, "old", title="Old report", minutes_ago=5 * 24 * 60)
+    old.until = now + timedelta(days=9)
+    page = render_news([event(now), old], [], now)
+    assert "Sample headline" in page
+    assert "Old report" not in page
+
+
 def test_grouped_by_continent_then_country_with_a_link_to_the_globe(now) -> None:
     page = render_news([event(now, "b", geo=JAPAN), event(now, "a")], [], now)
     assert page.index("<h2>Asia (1)") < page.index("<h2>Europe (1)")
-    assert 'href="/?place=Europe/Western%20Europe/BE"' in page
+    assert 'href="/?place=Europe/Western%20Europe/BE&amp;view=news"' in page
     assert 'href="#europe"' in page
 
 

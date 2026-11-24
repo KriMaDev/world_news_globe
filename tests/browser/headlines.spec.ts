@@ -8,7 +8,7 @@ const warnings = (page: Page) => page.locator('#news-panel .news-warning');
 
 test('it opens, counts its rows, and shows headlines word for word', async ({ page }) => {
   const problems = watchProblems(page);
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await expect(panel(page)).toBeHidden();
 
   await page.locator('#news-toggle').click();
@@ -23,7 +23,7 @@ test('it opens, counts its rows, and shows headlines word for word', async ({ pa
 });
 
 test('most severe comes first, and it can sort by newest', async ({ page }) => {
-  await openGlobe(page, '/?list=1', { events: knownWorld() });
+  await openGlobe(page, '/?list=1&view=news', { events: knownWorld() });
   await expect(rows(page).first()).toHaveAttribute('data-event-id', 'war-ua');
 
   await page.locator('[data-news=sort-newest]').click();
@@ -36,7 +36,7 @@ test('most severe comes first, and it can sort by newest', async ({ page }) => {
 });
 
 test('a row opens its card, and Back returns to the same row', async ({ page }) => {
-  await openGlobe(page, '/?list=1', { events: knownWorld() });
+  await openGlobe(page, '/?list=1&view=news', { events: knownWorld() });
   const row = page.locator('#news-panel [data-event-id="quake-jp"]');
   await row.click();
 
@@ -53,7 +53,7 @@ test('a row opens its card, and Back returns to the same row', async ({ page }) 
 });
 
 test('Escape closes it and puts the focus back on the button', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await page.locator('#news-toggle').click();
   await expect(panel(page)).toBeVisible();
   await page.keyboard.press('Escape');
@@ -63,7 +63,7 @@ test('Escape closes it and puts the focus back on the button', async ({ page }) 
 });
 
 test('the address can open it with a filter already set', async ({ page }) => {
-  await openGlobe(page, '/?range=24h&list=1', { events: knownWorld() });
+  await openGlobe(page, '/?range=24h&list=1&view=news', { events: knownWorld() });
   await expect(panel(page)).toBeVisible();
   await expect(rows(page)).toHaveCount(6);
   await expect(page).toHaveURL(/range=24h/);
@@ -74,7 +74,7 @@ test('with Filters: beside the list on wide screens, in its place on narrow ones
   page,
   isMobile,
 }) => {
-  await openGlobe(page, '/?list=1', { events: knownWorld() });
+  await openGlobe(page, '/?list=1&view=news', { events: knownWorld() });
   await page.locator('#filter-toggle').click();
   await expect(page.locator('#filter-panel')).toBeVisible();
   if (isMobile) {
@@ -87,7 +87,7 @@ test('with Filters: beside the list on wide screens, in its place on narrow ones
 });
 
 test('old data and a failed feed are said plainly', async ({ page }) => {
-  await openGlobe(page, '/?list=1', {
+  await openGlobe(page, '/?list=1&view=news', {
     events: knownWorld(),
     dataAgeMinutes: 200,
     feeds: feedsDocument({ gdacs: { status: 'error', last_success: ago(200) } }, ago(200)),
@@ -97,7 +97,7 @@ test('old data and a failed feed are said plainly', async ({ page }) => {
 });
 
 test('a partly read feed is said plainly', async ({ page }) => {
-  await openGlobe(page, '/?list=1', {
+  await openGlobe(page, '/?list=1&view=news', {
     events: knownWorld(),
     feeds: feedsDocument({ gdelt: { status: 'partial' } }),
   });
@@ -105,7 +105,7 @@ test('a partly read feed is said plainly', async ({ page }) => {
 });
 
 test('no matching events: it says so and offers Clear filters', async ({ page }) => {
-  await openGlobe(page, '/?sev=none&list=1', { events: knownWorld() });
+  await openGlobe(page, '/?sev=none&list=1&view=news', { events: knownWorld() });
   const empty = page.locator('#news-panel .news-empty');
   await expect(empty).toContainText('No events match');
 
@@ -115,19 +115,19 @@ test('no matching events: it says so and offers Clear filters', async ({ page })
 });
 
 test('without the feed status it still works', async ({ page }) => {
-  await openGlobe(page, '/?list=1', { events: knownWorld(), feeds: 'missing' });
+  await openGlobe(page, '/?list=1&view=news', { events: knownWorld(), feeds: 'missing' });
   await expect(rows(page)).toHaveCount(7);
   await expect(page.locator('[data-news=updated]')).toContainText('Updated');
   await expect(page.locator('[data-news=details]')).toBeHidden();
 });
 
 test('when the events cannot be loaded, it says so', async ({ page }) => {
-  await openGlobe(page, '/?list=1', { eventsFail: true, daysFail: true });
+  await openGlobe(page, '/?list=1&view=news', { eventsFail: true, daysFail: true });
   await expect(page.locator('#news-panel .news-empty')).toContainText("couldn't be loaded");
 });
 
 test('when only the latest file fails, older days fill in and it says so', async ({ page }) => {
-  await openGlobe(page, '/?range=7d&list=1', { events: knownWorld(), eventsFail: true });
+  await openGlobe(page, '/?range=7d&list=1&view=news', { events: knownWorld(), eventsFail: true });
   await expect(rows(page).first()).toBeVisible();
   await expect(warnings(page).filter({ hasText: 'may be older' })).toHaveCount(1);
 });

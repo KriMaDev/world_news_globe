@@ -1,7 +1,7 @@
 /**
- * The time window: presets (6 h, 24 h, 3 days, 7 days, 14 days) and an "ending at" slider that
- * moves the window back in time by the hour, down to 14 days ago. Built once and updated in place,
- * so dragging the slider is never interrupted by a redraw.
+ * The time window: presets (6 h, 24 h, 3 days, 7 days, 14 days), an "ending at" slider that
+ * moves the window back in time by the hour, down to 14 days ago, and the "Ongoing events" tick
+ * box. Built once and updated in place, so dragging the slider is never interrupted by a redraw.
  */
 
 import {
@@ -28,6 +28,12 @@ const utc = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
   timeZone: 'UTC',
 });
+
+/** What "Ongoing events" adds, shown while it is ticked. */
+export const ONGOING_NOTE =
+  'Also shows events that began before this time and are still going on: WHO outbreak ' +
+  'reports for 14 days after publication, and internet outages until they end. Their cards ' +
+  'say so. News reports have no end date, so they still show only when published.';
 
 export interface Timeline {
   update(state: FilterState, now: number): void;
@@ -94,7 +100,24 @@ export function createTimeline(
     });
   });
 
-  root.replaceChildren(presets, sliderRow, readout);
+  // "Ongoing events": off by default, so a window shows only what was published in it (owner,
+  // 24 Nov 2026). Ticked, reports that are still current count too, and the note says which.
+  const ongoingRow = document.createElement('label');
+  ongoingRow.className = 'ongoing-toggle';
+  const ongoingBox = document.createElement('input');
+  ongoingBox.type = 'checkbox';
+  ongoingBox.id = 'ongoing-toggle';
+  ongoingBox.setAttribute('aria-describedby', 'ongoing-note');
+  ongoingBox.addEventListener('change', () => onChange({ ongoing: ongoingBox.checked }));
+  const ongoingText = document.createElement('span');
+  ongoingText.textContent = 'Ongoing events';
+  ongoingRow.append(ongoingBox, ongoingText);
+  const ongoingNote = document.createElement('p');
+  ongoingNote.className = 'ongoing-note';
+  ongoingNote.id = 'ongoing-note';
+  ongoingNote.textContent = ONGOING_NOTE;
+
+  root.replaceChildren(presets, sliderRow, readout, ongoingRow, ongoingNote);
 
   return {
     update(state, now) {
@@ -104,6 +127,8 @@ export function createTimeline(
       const back = Math.min(hoursBack(state, now), maxHoursBack(state.range));
       if (document.activeElement !== slider) slider.value = String(back);
       nowButton.disabled = state.end === null;
+      ongoingBox.checked = state.ongoing;
+      ongoingNote.hidden = !state.ongoing;
       const { from, to } = windowOf(state, now);
       const ending = state.end === null ? 'now' : local.format(to);
       readout.textContent = `${local.format(from)} → ${ending} · UTC ${utc.format(from)} → ${utc.format(to)}`;

@@ -548,10 +548,15 @@ button {
   gap: 0.3em;
 }
 
+/* The symbol is as tall as the name's capital letters, on every device and text size (owner,
+   24 Nov 2026: it was 18 px, larger than the name). 0.73em is JetBrains Mono's cap height, for
+   browsers without the cap unit. The drawings are square, so the width follows. */
 .map-label .news-icon {
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 0.73em;
+  height: 0.73em;
+  width: 1cap;
+  height: 1cap;
   color: rgb(238 241 244);
   filter: drop-shadow(0 0 2px rgb(0 0 0 / 95%)) drop-shadow(0 0 5px rgb(0 0 0 / 70%));
 }
@@ -1531,6 +1536,32 @@ html.text-large {
   letter-spacing: 0.02em;
 }
 
+/* "Ongoing events": off by default; its note shows only while it is ticked. */
+.ongoing-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  color: var(--fg);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ongoing-toggle input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ongoing-note {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
 .filter-clear:disabled {
   opacity: 0.4;
   cursor: default;
@@ -2070,7 +2101,8 @@ body.page {
   .filter-all,
   .card-back,
   .info-toggle,
-  .place-select {
+  .place-select,
+  .ongoing-toggle {
     min-height: 44px;
   }
 

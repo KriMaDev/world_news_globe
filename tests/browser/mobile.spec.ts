@@ -94,7 +94,7 @@ test('zoom buttons work, stop at the limit, and Whole globe comes back', async (
 
 test('Whole globe also goes back to the starting view', async ({ page }) => {
   test.setTimeout(120_000); // Software graphics here run at a few frames a second.
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await page.locator('#rotate-toggle').click();
   await page.waitForTimeout(800);
   const [, startLng] = await view(page);

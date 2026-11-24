@@ -7,7 +7,7 @@ const chip = (page: Page, group: string, name: string) =>
 const summary = (page: Page) => page.locator('#legend-summary');
 
 test.beforeEach(async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await page.locator('#filter-toggle').click();
   await expect(page.locator('#filter-panel')).toBeVisible();
 });

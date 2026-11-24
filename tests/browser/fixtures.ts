@@ -205,7 +205,11 @@ export async function serveWorld(page: Page, options: WorldOptions = {}): Promis
   );
 }
 
-export async function openGlobe(page: Page, path = '/', options: WorldOptions = {}): Promise<void> {
+export async function openGlobe(
+  page: Page,
+  path = '/?view=news',
+  options: WorldOptions = {},
+): Promise<void> {
   await serveWorld(page, options);
   await page.goto(path);
   await expect(page.locator('#rotate-toggle')).toBeVisible({ timeout: 60_000 });

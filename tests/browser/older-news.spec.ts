@@ -44,7 +44,7 @@ async function chooseRange(page: Page, label: string): Promise<void> {
 test('with 14 days, older news is a small dot and the legend says so; 3 days has none', async ({
   page,
 }) => {
-  await openGlobe(page, '/?range=14d', { events: mixedAges() });
+  await openGlobe(page, '/?range=14d&view=news', { events: mixedAges() });
   const globe = page.locator('#globe');
   await expect(globe).toHaveAttribute('data-older', '3');
   await expect(page.locator('.legend-older')).not.toHaveCSS('display', 'none');
@@ -62,11 +62,11 @@ test('the line moves with the window: 3 days before its end', async ({ page }) =
     syntheticEvent('six-days', -20, 60, at(6 * 24)),
   ];
   // Ends now: both are older than 3 days.
-  await openGlobe(page, '/?range=7d', { events });
+  await openGlobe(page, '/?range=7d&view=news', { events });
   await expect(page.locator('#globe')).toHaveAttribute('data-older', '2');
   // Ends 2 days ago: four days ago is within its last 3 days, six days ago is not.
   const end = new Date(Date.now() - 48 * HOUR).toISOString().slice(0, 13) + 'Z';
-  await page.goto(`/?range=7d&end=${end}`);
+  await page.goto(`/?range=7d&end=${end}&view=news`);
   await expect(page.locator('#globe')).toHaveAttribute('data-older', '1');
 });
 
@@ -83,7 +83,7 @@ test('an older dot says its age on hover and opens its card, which says why it i
       title: 'Made-up older headline',
     }),
   ];
-  await openGlobe(page, '/?range=14d', { events });
+  await openGlobe(page, '/?range=14d&view=news', { events });
   if ((await page.locator('#rotate-toggle').getAttribute('aria-pressed')) === 'true') {
     await page.locator('#rotate-toggle').click();
   }
@@ -129,7 +129,7 @@ test("a card says why its story is a dot; a recent story's card does not", async
     syntheticEvent('fresh', 10, 10, { ...TESTLAND, ...at(5), title: 'Made-up new' }),
     syntheticEvent('aged', -10, 50, { ...TESTLAND, ...at(5 * 24 + 2), title: 'Made-up aged' }),
   ];
-  await openGlobe(page, '/?range=14d&list=1', { events });
+  await openGlobe(page, '/?range=14d&list=1&view=news', { events });
   await page.locator('#news-panel [data-event-id="aged"]').click();
   await expect(page.locator('#event-card-title')).toHaveText('Made-up aged');
   await expect(page.locator('.card-age')).toContainText('Shown as a dot: 5 days old');
@@ -151,7 +151,7 @@ test('count badges never sit on top of each other', async ({ page }) => {
       events.push(syntheticEvent(`p-${lat}-${lng}-b`, lat + 0.1, lng + 0.1));
     }
   }
-  await openGlobe(page, '/', { events });
+  await openGlobe(page, '/?view=news', { events });
   if ((await page.locator('#rotate-toggle').getAttribute('aria-pressed')) === 'true') {
     await page.locator('#rotate-toggle').click();
   }
@@ -198,7 +198,7 @@ test('low-severity markers on a shore or an island get the clear look; others do
     syntheticEvent('low-inland', 39.74, -104.99, low), // far from any sea
     syntheticEvent('moderate-coast', -33.87, 151.21), // on a coast, but not low
   ];
-  await openGlobe(page, '/?range=14d', { events });
+  await openGlobe(page, '/?range=14d&view=news', { events });
   // Known once the coastlines have loaded.
   await expect(page.locator('#globe')).toHaveAttribute('data-shore', '2', { timeout: 30_000 });
   await expect(page.locator('#globe')).toHaveAttribute('data-older', '1');

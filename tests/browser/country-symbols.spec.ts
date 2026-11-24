@@ -181,3 +181,20 @@ test('the legend lists the country symbols on the Geography map only', async ({
   await page.locator('#view-news').click();
   await expect(page.locator('.legend-country-symbols')).toBeHidden();
 });
+
+test("a country's symbol is as tall as its name's capital letters, and square", async ({
+  page,
+}) => {
+  await openGlobe(page, '/?view=geo', { events: [inCountry('news-fr', 'critical', ['war'])] });
+  await showEurope(page);
+  const france = countryLabel(page, 'France').first();
+  await expect(france).toHaveAttribute('data-symbol', 'war', { timeout: 30_000 });
+  const size = await france.evaluate((label) => {
+    const icon = label.querySelector('.news-icon')!.getBoundingClientRect();
+    const fontSize = parseFloat(getComputedStyle(label).fontSize);
+    return { width: icon.width, height: icon.height, fontSize };
+  });
+  // JetBrains Mono's capital letters are 0.73 of the font size (8 px at 11 px; it was 18 px).
+  expect(Math.abs(size.height - size.fontSize * 0.73)).toBeLessThan(1);
+  expect(Math.abs(size.width - size.height)).toBeLessThan(0.5);
+});

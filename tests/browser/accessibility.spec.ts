@@ -15,7 +15,8 @@ async function expectNoSeriousProblems(page: Page): Promise<void> {
   expect(serious).toEqual([]);
 }
 
-const openWorld = (page: Page, path = '/') => openGlobe(page, path, { events: knownWorld() });
+const openWorld = (page: Page, path = '/?view=news') =>
+  openGlobe(page, path, { events: knownWorld() });
 
 test.describe('axe finds nothing serious', () => {
   test.setTimeout(120_000);

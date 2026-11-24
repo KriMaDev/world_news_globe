@@ -14,7 +14,7 @@ const shownLabels = (page: Page) => page.locator('.map-label:not(.is-hidden):not
 
 test('the switch changes the map and the address, and back again', async ({ page }) => {
   const problems = watchProblems(page);
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   const geo = page.locator('#view-geo');
   await expect(page.locator('#view-news')).toHaveAttribute('aria-pressed', 'true');
 

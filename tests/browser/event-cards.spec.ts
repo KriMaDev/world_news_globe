@@ -6,7 +6,7 @@ test('a news card shows the headline word for word, its outlet and why it is rat
   page,
 }) => {
   const problems = watchProblems(page);
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await openEvent(page, 'news-fr');
 
   const card = page.locator('#event-card');
@@ -30,27 +30,27 @@ test('a news card shows the headline word for word, its outlet and why it is rat
 });
 
 test('a data feed is told apart from a news report', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await openEvent(page, 'quake-jp');
   await expect(page.locator('#event-card .card-kind')).toContainText('Data feed');
   await expect(page.locator('#event-card')).toContainText('USGS');
 });
 
 test('a state-affiliated outlet is labelled on the card', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await openEvent(page, 'war-ua');
   await expect(page.locator('#event-card .badge-state')).toContainText('State-affiliated');
 });
 
 test('the close button closes the card', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   await openEvent(page, 'news-fr');
   await page.locator('#event-card .card-close').first().click();
   await expect(page.locator('#event-card')).toBeHidden();
 });
 
 test('a group opens as a list, its rows open cards, and Back returns', async ({ page }) => {
-  await openGlobe(page, '/', { events: knownWorld() });
+  await openGlobe(page, '/?view=news', { events: knownWorld() });
   const card = page.locator('#event-card');
   await openFirstGroup(page);
 

@@ -114,6 +114,10 @@ export interface GlobeEvent {
   feed?: string;
   hazard?: string | null;
   first_seen?: string;
+  /** ISO 8601 time it stops being current, for reports that stay relevant after the day they
+   * are published (WHO outbreak reports: 14 days; outages: their end). Counted only with
+   * "Ongoing events" ticked (`timed` in filters.ts); absent: only `published` counts. */
+  until?: string;
   /** How many different outlets or providers report it. */
   coverage?: number;
   geo?: EventGeo;

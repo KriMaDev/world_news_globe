@@ -124,7 +124,7 @@ Each country with news also shows **one symbol**, for the category of its main n
 2. Count their categories. Only categories the category filter lets through count, and an event with two categories counts for both. The category most of them have wins; a tie goes to the first in the fixed order (War, Politics, Natural disasters, Economic, Technology advancements, Cyber & outages, Health & outbreaks, Climate & environment, Crime & justice, Humanitarian & migration, Science & space, Sport). So colour and symbol always come from the same, most severe news.
 3. Natural disasters show the disaster's own symbol (earthquake, flood and so on, as on the News map): that of the newest disaster at the country's highest severity, or the warning sign when its type is unknown.
 4. "+2" after the name: the number of other categories among all the country's events. The country's card lists every category with its count.
-5. The symbol is drawn in its severity's colour. Small countries whose name doesn't show yet at this zoom show their symbol alone, and only where it fits after every name has been placed; a name with no room is tried as its symbol alone before it is hidden. Symbols never cover a name.
+5. The symbol is drawn in its severity's colour, as tall as the name's capital letters (since 1.15.0; it was 18 px, larger than the name), so it follows the text size on every device. Small countries whose name doesn't show yet at this zoom show their symbol alone, and only where it fits after every name has been placed; a name with no room is tried as its symbol alone before it is hidden. Symbols never cover a name.
 
 Code: `countryNews` in `frontend/src/geography.ts`, the symbols in `frontend/src/globe/category-icons.ts` (our own drawings).
 

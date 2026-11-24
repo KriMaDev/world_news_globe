@@ -17,13 +17,14 @@ import { startAnalytics } from './analytics';
 import { compareBySeverity, parseEvents } from './events';
 import type { Cluster } from './clusters';
 import {
-  publishedIn,
+  currentIn,
   defaultFilters,
   fromQuery,
   isDefault,
   matchesExceptTime,
   toQuery,
   recentFrom,
+  timed,
   windowOf,
   withPageState,
   viewFromQuery,
@@ -294,13 +295,24 @@ function closePanels(): void {
   headlines.close();
 }
 
+/** The events in the time window [from, to], as the time filter sees them: with "Ongoing
+ * events" off, each counts only at its publication time (`timed`). */
+function inTime(from: number, to: number): GlobeEvent[] {
+  const found: GlobeEvent[] = [];
+  for (const raw of allEvents) {
+    const event = timed(raw, filters.ongoing);
+    if (currentIn(event, from, to)) found.push(event);
+  }
+  return found;
+}
+
 /** How many kinds of filter are on (categories, severities, time, place). */
 function activeFilters(state: FilterState): number {
   const fresh = defaultFilters();
   return [
     state.categories.size !== fresh.categories.size,
     state.severities.size !== fresh.severities.size,
-    state.range !== fresh.range || state.end !== null,
+    state.range !== fresh.range || state.end !== null || state.ongoing,
     state.place.length > 0,
   ].filter(Boolean).length;
 }
@@ -336,7 +348,7 @@ const placePicker = createPlacePicker(
     filters = { ...filters, place: path };
     applyFilters();
     const { from, to } = windowOf(filters, Date.now());
-    const inWindow = allEvents.filter((e) => publishedIn(e, from, to));
+    const inWindow = inTime(from, to);
     const center = placeCenter(inWindow, path);
     if (center) app?.flyOver(center.lat, center.lng, placeAltitude(path.length));
   },
@@ -412,7 +424,7 @@ function applyFilters(): void {
   const now = Date.now();
   const { from, to } = windowOf(filters, now);
   ensureHistory(from);
-  const inWindow = allEvents.filter((e) => publishedIn(e, from, to));
+  const inWindow = inTime(from, to);
   events = inWindow.filter((e) => matchesExceptTime(e, filters)).sort(compareBySeverity);
   panel.render(filters, chipCounts(inWindow), activeFilters(filters));
   timeline.update(filters, now);
@@ -685,9 +697,8 @@ function chooseCountry(iso2: string): void {
   const country = geoData?.countries.find((c) => c.iso2 === iso2);
   if (!country) return;
   const { from, to } = windowOf(filters, Date.now());
-  const match = allEvents.find(
-    (e) =>
-      e.geo?.country_code === iso2 && e.geo.continent && e.geo.region && publishedIn(e, from, to),
+  const match = inTime(from, to).find(
+    (e) => e.geo?.country_code === iso2 && e.geo.continent && e.geo.region,
   );
   const here = mapView === 'geo' ? events.filter((e) => e.geo?.country_code === iso2) : [];
   const news = countryNews(here, filters.categories).get(iso2);

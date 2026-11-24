@@ -63,6 +63,15 @@ class Event:
     #: "sport-section"; see categorize.category_basis). Empty for data feeds.
     category_basis: dict[str, str] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
+    #: When an event stops being current, for reports that stay relevant after the day they
+    #: are published (WHO outbreak reports: 14 days; Radar outages: their end). The page uses it
+    #: only with "Ongoing events" ticked. None: only its publication time counts.
+    until: datetime | None = None
+
+    @property
+    def active_until(self) -> datetime:
+        """The last moment the event counts in a time window."""
+        return self.until or self.published
 
     @property
     def coverage(self) -> int:
@@ -92,6 +101,8 @@ class Event:
             "geo": asdict(self.geo),
             "location_method": self.location_method,
         }
+        if self.until is not None:
+            data["until"] = iso(self.until)
         return data
 
     @classmethod
@@ -116,6 +127,7 @@ class Event:
             sources=[Source(**source) for source in data["sources"]],
             geo=Geo(**data["geo"]),
             location_method=data["location_method"],
+            until=parse_iso(data["until"]) if data.get("until") else None,
         )
 
 
