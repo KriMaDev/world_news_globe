@@ -1,7 +1,7 @@
 /** Automatic accessibility checks (axe) on every page and panel. Made-up data only. */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { knownWorld, openEvent, openGlobe, serveWorld } from './fixtures';
+import { knownWorld, openEvent, openFirstGroup, openGlobe, serveWorld } from './fixtures';
 
 /** Fails on anything axe rates serious or critical, and says where it is. */
 async function expectNoSeriousProblems(page: Page): Promise<void> {
@@ -47,9 +47,7 @@ test.describe('axe finds nothing serious', () => {
 
   test('a group list', async ({ page }) => {
     await openWorld(page);
-    await expect(page.locator('.cluster-badge').first()).toBeAttached();
-    await page.evaluate(() => document.querySelector<HTMLElement>('.cluster-badge')?.click());
-    await expect(page.locator('#event-card')).toBeVisible();
+    await openFirstGroup(page);
     await expectNoSeriousProblems(page);
   });
 

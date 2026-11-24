@@ -282,6 +282,17 @@ export async function openEvent(page: Page, id: string): Promise<void> {
   await expect(page.locator('#event-card')).toBeVisible();
 }
 
+/** Opens the first group's list by its count badge, clicking again until the card shows. Under
+ * the full suite's load a single click right after the globe loaded sometimes opened nothing on
+ * the phone project (24 Nov 2026, also on 1.14.0); on its own it always worked. */
+export async function openFirstGroup(page: Page): Promise<void> {
+  await expect(page.locator('.cluster-badge').first()).toBeAttached();
+  await expect(async () => {
+    await page.evaluate(() => document.querySelector<HTMLElement>('.cluster-badge')?.click());
+    await expect(page.locator('#event-card')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
+}
+
 /** Turns the globe to Europe and comes in close: where it starts depends on the time of day. */
 export async function showEurope(page: Page): Promise<void> {
   await openEvent(page, 'news-fr');

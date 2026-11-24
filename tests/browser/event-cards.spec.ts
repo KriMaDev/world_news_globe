@@ -1,6 +1,6 @@
 /** Event cards and group lists: what they say, and how they close. Made-up events only. */
 import { expect, test } from '@playwright/test';
-import { knownWorld, openEvent, openGlobe, watchProblems } from './fixtures';
+import { knownWorld, openEvent, openFirstGroup, openGlobe, watchProblems } from './fixtures';
 
 test('a news card shows the headline word for word, its outlet and why it is rated', async ({
   page,
@@ -52,8 +52,7 @@ test('the close button closes the card', async ({ page }) => {
 test('a group opens as a list, its rows open cards, and Back returns', async ({ page }) => {
   await openGlobe(page, '/', { events: knownWorld() });
   const card = page.locator('#event-card');
-  await expect(page.locator('.cluster-badge').first()).toBeAttached();
-  await page.evaluate(() => document.querySelector<HTMLElement>('.cluster-badge')?.click());
+  await openFirstGroup(page);
 
   await expect(card.locator('.card-kind')).toContainText('Group · 2 events');
   const rows = card.locator('.card-list-item');
