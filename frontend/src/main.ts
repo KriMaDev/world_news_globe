@@ -446,7 +446,8 @@ function applyFilters(): void {
     const cut = recentFrom(filters, now);
     document.body.classList.toggle('long-window', cut !== null);
     card.setRecentFrom(cut);
-    app.setEvents(events, cut);
+    // While the map the page opened on is still loading, no News markers flash up first.
+    app.setEvents(mapView !== 'news' && !geoData ? [] : events, cut);
     if (mapView !== 'news' && geoData) app.setGeography(geoData, newsByCountry(), mapView);
     renderEventList(list, events, listHandlers);
     if (allEvents.length > 0 && !loadingHistory) {
@@ -479,6 +480,15 @@ const viewButtons: Record<MapView, HTMLButtonElement> = {
 function updateAddress(): void {
   const query = withPageState(toQuery(filters), { view: mapView, list: headlines.isOpen });
   window.history.replaceState(null, '', window.location.pathname + query);
+}
+
+/** The geography files, loading or loaded (null: not asked for yet, or failed). Started with
+ * the news when the page opens on a map that needs them, so the start is not slower. */
+let geoLoading: Promise<GeographyData> | null = null;
+
+function geography(): Promise<GeographyData> {
+  geoLoading ??= loadGeography();
+  return geoLoading;
 }
 
 async function loadGeography(): Promise<GeographyData> {
@@ -586,9 +596,10 @@ async function setMapView(next: MapView): Promise<void> {
   if (next !== 'news' && !geoData) {
     try {
       notice('Loading the map…');
-      geoData = await loadGeography();
+      geoData = await geography();
       notice(null);
     } catch (error) {
+      geoLoading = null; // The next switch tries again.
       console.warn('Geography unavailable:', error);
       notice("The map couldn't be loaded. Please try again later.");
       mapView = 'news';
@@ -795,6 +806,8 @@ async function start(): Promise<void> {
 
   // The 3D code starts downloading now, alongside the events, not after them.
   const canDraw = hasWebGL();
+  // So do the map's files when the page opens on Geography (the default) or the Atlas.
+  if (canDraw && mapView !== 'news') geography().catch(() => undefined); // Reported on use.
   const globeCode = canDraw ? import('./globe/globe') : null;
   globeCode?.catch(() => undefined); // Reported where it is awaited, below.
   showLoadStep(1, 'Getting the latest news…');

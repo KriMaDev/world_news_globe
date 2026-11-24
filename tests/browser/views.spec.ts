@@ -22,6 +22,12 @@ const openCountry = async (page: Page, name: string): Promise<void> => {
 };
 
 test('the site opens on the Geography map, and News is one click away', async ({ page }) => {
+  // No News marker may show while the map is loading (it used to flash up first).
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      if (document.querySelector('.cluster-badge')) document.documentElement.dataset.badge = '1';
+    }).observe(document, { childList: true, subtree: true });
+  });
   await openGlobe(page, '/', { events: knownWorld() });
   await expect(page.locator('#view-geo')).toHaveAttribute('aria-pressed', 'true', {
     timeout: 30_000,
@@ -30,6 +36,7 @@ test('the site opens on the Geography map, and News is one click away', async ({
   await expect(page.locator('.map-label.kind-country').first()).toBeAttached({ timeout: 30_000 });
   await expect(page.locator('.cluster-badge')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+  await expect(page.locator('html')).not.toHaveAttribute('data-badge', '1');
 
   await page.locator('#view-news').click();
   await expect(page).toHaveURL(/view=news/);
